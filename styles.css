@@ -195,3 +195,124 @@ html { overflow-x: clip; }
 .page-view .section {
   padding: 60px 0;
 }
+
+/* ========================================================
+   COMPACT & FIT-TO-VIEWPORT ADJUSTMENTS (NO CUT-OFF)
+   ======================================================== */
+
+/* Уменьшаем высоту шапки и отступы секций при открытии страниц */
+.site-header {
+  height: 70px;
+}
+html {
+  scroll-padding-top: 80px;
+}
+
+.page-view .section {
+  padding: 36px 0 50px;
+}
+
+.page-view .hero {
+  padding: 38px 0 20px;
+}
+.hero-grid {
+  min-height: unset;
+}
+.hero-name {
+  margin: 18px 0 12px;
+}
+.hero h1 {
+  font-size: clamp(48px, 4.8vw, 76px);
+  margin-bottom: 18px;
+}
+.hero-art {
+  min-height: 460px;
+}
+
+/* Компактные заголовки секций: контент сразу виден на 100% зуме без обрезания */
+.section-heading-row {
+  margin-bottom: 24px;
+}
+.section-kicker {
+  margin: 0 0 10px;
+}
+.section-title {
+  font-size: clamp(34px, 3.6vw, 54px);
+  line-height: 1.08;
+}
+.section-intro {
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+/* Блок языков и стека (Skills & Languages) - полностью помещается в экран */
+.language-panel {
+  margin-bottom: 24px;
+}
+.language-panel-head {
+  padding: 18px 24px 16px;
+  gap: 20px;
+}
+.language-eyebrow {
+  margin-bottom: 8px;
+}
+.language-panel-head h3 {
+  font-size: clamp(20px, 2vw, 26px);
+}
+.language-group {
+  padding: 16px 20px 20px;
+}
+.language-group h4 {
+  margin: 10px 0 14px;
+  font-size: 17px;
+}
+.language-items {
+  gap: 8px;
+}
+.language-item {
+  padding: 9px 12px;
+}
+.language-item strong {
+  font-size: 11.5px;
+}
+.language-item span {
+  font-size: 10.5px;
+  margin-top: 4px;
+}
+
+/* AI-Проекты карточки */
+.ai-feature {
+  padding: 32px;
+  gap: 32px;
+  min-height: unset;
+  margin-bottom: 16px;
+}
+.ai-feature h3 {
+  margin: 20px 0 12px;
+  font-size: clamp(32px, 3.2vw, 48px);
+}
+.feature-visual {
+  min-height: 340px;
+}
+
+/* Кейсы карточки */
+.project-card {
+  min-height: 250px;
+  padding: 22px 22px 20px;
+}
+.project-card h3 {
+  margin: 24px 0 10px;
+  font-size: clamp(18px, 1.6vw, 22px);
+}
+.project-card p {
+  margin: 0 0 20px;
+}
+
+/* Контакты */
+.page-view .contact-section {
+  padding: 60px 0 70px;
+}
+.contact-layout h2 {
+  font-size: clamp(38px, 4.4vw, 64px);
+  margin-bottom: 18px;
+}
