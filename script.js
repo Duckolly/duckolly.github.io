@@ -35,7 +35,6 @@
   }
 
   // 2. Механизм многостраничности (Tab Router)
-  const navLinks = document.querySelectorAll('.site-nav a, a[href^="#"]');
   const pages = document.querySelectorAll('.page-view');
 
   function showPage(pageId) {
