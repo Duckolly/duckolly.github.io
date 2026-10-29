@@ -161,25 +161,23 @@ html { overflow-x: clip; }
 @media(max-width: 680px) { .language-panel-head { padding: 24px 22px 23px; }.language-panel-head h3 { font-size: 27px; }.language-panel-head > p { font-size: 12px; }.language-grid { grid-template-columns: 1fr; }.language-group { padding: 24px 22px; }.language-group + .language-group, .language-group:last-child { grid-column: auto; border-left: 0; border-top: 1px solid var(--line); }.language-group h4 { margin: 12px 0 17px; }.language-group-web .language-items { grid-template-columns: 1fr; } }
 @media print { .language-panel { background: #fff; border: 1px solid #ddd; }.language-panel-head h3, .language-group h4, .language-item strong { color: #111 !important; }.language-panel-head h3 span, .language-panel-head > p, .language-group-index, .language-item span { color: #444; }.language-item { border-color: #ddd; background: #fff; } }
 
-
-/* --- MULTI-PAGE / TABS DISPLAY --- */
+/* --- MULTI-PAGE TABS & PAGING STYLES --- */
 .page-view {
   display: none;
-  animation: fadeIn 0.25s ease-in-out;
+  animation: fadeInPage 0.25s ease-in-out;
 }
 
 .page-view.active-page {
   display: block;
 }
 
-@keyframes fadeIn {
+@keyframes fadeInPage {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Стили активной вкладки в верхнем меню */
 .site-nav a.active-tab {
-  color: #fff !important;
+  color: #ffffff !important;
   border-bottom: 2px solid var(--accent);
   padding-bottom: 4px;
 }
@@ -189,11 +187,11 @@ html { overflow-x: clip; }
   color: #101116 !important;
   border-color: var(--accent);
 }
+
 .site-nav .nav-contact.active-tab span {
   color: #101116 !important;
 }
 
-/* Компактные отступы для отдельных страниц */
 .page-view .section {
   padding: 60px 0;
 }
