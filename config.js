@@ -1,6 +1,6 @@
 /*
  * Персональные ссылки Сергея Швецова.
- * В этом файле также подключается автономная 3D-сцена главной страницы.
+ * В этом файле также подключается кинематографическая сцена с гравитационным линзированием главной страницы.
  */
 window.PORTFOLIO_CONTACTS = {
   github: "https://github.com/Duckolly",
@@ -17,7 +17,7 @@ window.PORTFOLIO_CONTACTS = {
   if (!document.querySelector('link[data-cosmic-hero]')) {
     const stylesheet = document.createElement('link');
     stylesheet.rel = 'stylesheet';
-    stylesheet.href = './cosmic-hero.css';
+    stylesheet.href = './cosmic-hero.css?v=2';
     stylesheet.dataset.cosmicHero = 'style';
     document.head.append(stylesheet);
   }
@@ -25,7 +25,7 @@ window.PORTFOLIO_CONTACTS = {
   const loadScene = () => {
     if (document.querySelector('script[data-cosmic-hero]')) return;
     const script = document.createElement('script');
-    script.src = './cosmic-hero.js';
+    script.src = './cosmic-hero.js?v=2';
     script.dataset.cosmicHero = 'script';
     script.onerror = () => console.warn('Cosmic hero: не удалось загрузить cosmic-hero.js');
     document.head.append(script);

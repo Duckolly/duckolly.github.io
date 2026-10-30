@@ -1,5 +1,8 @@
-/* Cosmic hero: self-contained, dependency-free WebGL2 black hole for GitHub Pages.
- * Preserves existing #hash navigation and a static fallback when WebGL2 is unavailable.
+/**
+ * Gargantua-inspired interactive hero, v2.0.
+ * Standalone WebGL2 + GLSL, no bundler/CDN/backend; GitHub Pages compatible.
+ * Ray bending is a stylized Schwarzschild-inspired approximation, NOT a Kerr geodesic solver.
+ * Everything linked is HTML so links still work without WebGL or JavaScript animation.
  */
 (() => {
   'use strict';
@@ -8,92 +11,63 @@
   if (!card || card.dataset.cosmicInitialized === '1') return;
   card.dataset.cosmicInitialized = '1';
 
-  const strings = {
-    label: '\u041d\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u044f \u043f\u043e \u0440\u0430\u0437\u0434\u0435\u043b\u0430\u043c \u0441\u0430\u0439\u0442\u0430',
-    home: '\u0413\u043b\u0430\u0432\u043d\u0430\u044f',
-    projects: 'AI-\u043f\u0440\u043e\u0435\u043a\u0442\u044b',
-    cases: '\u041a\u0435\u0439\u0441\u044b',
-    skills: '\u0421\u0442\u0435\u043a',
-    contact: '\u0421\u0432\u044f\u0437\u0430\u0442\u044c\u0441\u044f',
-    pause: '\u041f\u0430\u0443\u0437\u0430',
-    play: '\u0410\u043d\u0438\u043c\u0430\u0446\u0438\u044f',
-    graphic: '\u0418\u043d\u0442\u0435\u0440\u0430\u043a\u0442\u0438\u0432\u043d\u0430\u044f \u043a\u043e\u0441\u043c\u0438\u0447\u0435\u0441\u043a\u0430\u044f \u0441\u0446\u0435\u043d\u0430'
-  };
-
-  // Real HTML links are keyboard accessible and reuse the site's existing hash router.
-  const destinations = [
-    { id: 'home', tag: '01', label: strings.home, cls: 'cosmic-home' },
-    { id: 'ai-projects', tag: '02', label: strings.projects, cls: 'cosmic-projects' },
-    { id: 'experience', tag: '03', label: strings.cases, cls: 'cosmic-cases' },
-    { id: 'skills', tag: '04', label: strings.skills, cls: 'cosmic-skills' },
-    { id: 'contacts', tag: '05', label: strings.contact, cls: 'cosmic-contact' }
+  const links = [
+    { route: 'home', number: '01', title: 'Главная', css: 'cosmic-home' },
+    { route: 'ai-projects', number: '02', title: 'AI-проекты', css: 'cosmic-projects' },
+    { route: 'experience', number: '03', title: 'Кейсы', css: 'cosmic-cases' },
+    { route: 'skills', number: '04', title: 'Стек', css: 'cosmic-skills' },
+    { route: 'contacts', number: '05', title: 'Связаться', css: 'cosmic-contact' }
   ];
 
   const canvas = document.createElement('canvas');
   canvas.className = 'cosmic-canvas';
   canvas.setAttribute('aria-hidden', 'true');
+
+  // A locally generated frame from the same bending algorithm; never a film asset.
   const fallback = document.createElement('div');
   fallback.className = 'cosmic-fallback';
   fallback.setAttribute('aria-hidden', 'true');
-  fallback.innerHTML = '<span class="cosmic-fallback-disk"></span><span class="cosmic-fallback-core"></span>';
+  const fallbackImage = document.createElement('img');
+  fallbackImage.src = './gargantua-fallback.webp';
+  fallbackImage.alt = '';
+  fallbackImage.loading = 'eager';
+  fallbackImage.decoding = 'async';
+  fallback.append(fallbackImage);
 
-  const orbits = document.createElement('div');
-  orbits.className = 'cosmic-orbits';
-  orbits.setAttribute('aria-hidden', 'true');
-  orbits.innerHTML = '<span></span><span></span>';
+  const orbitLines = document.createElement('div');
+  orbitLines.className = 'cosmic-orbits';
+  orbitLines.setAttribute('aria-hidden', 'true');
+  orbitLines.append(document.createElement('i'), document.createElement('i'));
 
   const nav = document.createElement('nav');
   nav.className = 'cosmic-nav';
-  nav.setAttribute('aria-label', strings.label);
-  destinations.forEach(item => {
-    const link = document.createElement('a');
-    link.href = '#' + item.id;
-    link.className = 'cosmic-link ' + item.cls;
-    link.setAttribute('aria-label', item.label);
-    link.title = item.label;
+  nav.setAttribute('aria-label', 'Интерактивная навигация по разделам');
+  for (const entry of links) {
+    const a = document.createElement('a');
+    a.href = `#${entry.route}`;
+    a.className = `cosmic-link ${entry.css}`;
+    a.setAttribute('aria-label', entry.title);
+    a.title = entry.title;
     const number = document.createElement('span');
     number.className = 'cosmic-link-number';
-    number.textContent = item.tag;
-    const title = document.createElement('strong');
-    title.className = 'cosmic-link-label';
-    title.textContent = item.label;
-    link.append(number, title);
-    nav.append(link);
-  });
+    number.textContent = entry.number;
+    const label = document.createElement('span');
+    label.className = 'cosmic-link-label';
+    label.textContent = entry.title;
+    a.append(number, label);
+    nav.append(a);
+  }
 
-  const pauseButton = document.createElement('button');
-  pauseButton.type = 'button';
-  pauseButton.className = 'cosmic-motion-toggle';
-  pauseButton.setAttribute('aria-pressed', 'false');
+  const motionToggle = document.createElement('button');
+  motionToggle.type = 'button';
+  motionToggle.className = 'cosmic-motion-toggle';
+  motionToggle.setAttribute('aria-pressed', 'false');
 
-  card.prepend(fallback, canvas, orbits);
-  card.append(nav, pauseButton);
+  card.prepend(fallback, canvas, orbitLines);
+  card.append(nav, motionToggle);
   card.classList.add('cosmic-active');
   card.setAttribute('role', 'group');
-  card.setAttribute('aria-label', strings.graphic);
-
-  const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-  let userPaused = null;
-  let inViewport = true;
-  let frameId = 0;
-  let lastRenderAt = 0;
-  let startTime = performance.now();
-  let pauseTime = 0;
-  let pointer = [0, 0];
-  let targetPointer = [0, 0];
-  let graphics = null;
-
-  function isPaused() { return userPaused === null ? reduceMotionQuery.matches : userPaused; }
-  function isVisible() {
-    return !document.hidden && inViewport && !!card.closest('.active-page');
-  }
-  function shouldAnimate() { return isVisible() && !isPaused(); }
-  function updatePauseButton() {
-    pauseButton.textContent = isPaused() ? '\u25b6 ' + strings.play : '\u23f8 ' + strings.pause;
-    pauseButton.setAttribute('aria-pressed', String(isPaused()));
-    pauseButton.setAttribute('aria-label', isPaused() ? strings.play : strings.pause);
-  }
-  updatePauseButton();
+  card.setAttribute('aria-label', 'Космическая навигация с чёрной дырой');
 
   const vertexShader = `#version 300 es
     in vec2 a_position;
@@ -105,124 +79,141 @@
     uniform vec2 u_resolution;
     uniform float u_time;
     uniform vec2 u_pointer;
+    uniform float u_speed;
     out vec4 fragColor;
 
     float hash21(vec2 p) {
-      p = fract(p * vec2(123.34, 456.21));
-      p += dot(p, p + 45.32);
+      p = fract(p * vec2(127.1, 311.7));
+      p += dot(p, p + 43.19);
       return fract(p.x * p.y);
     }
-    float gauss(float x, float width) { return exp(-x * x / (width * width)); }
-    float sphereDistance(vec3 ro, vec3 rd, float radius) {
-      float b = dot(ro, rd);
-      float h = b * b - dot(ro, ro) + radius * radius;
-      return h >= 0.0 ? -b - sqrt(h) : -1.0;
+    float bell(float v, float sigma) {
+      float x = v / sigma;
+      return exp(-x * x);
     }
-    float starLayer(vec2 p, float gridSize, float threshold) {
-      vec2 cell = floor(p * gridSize);
-      vec2 local = fract(p * gridSize) - 0.5;
-      float seed = hash21(cell);
-      float present = smoothstep(threshold, 1.0, seed);
-      float radius = mix(0.035, 0.12, hash21(cell + 7.73));
-      float star = 1.0 - smoothstep(0.0, radius, length(local));
-      return star * present * (0.6 + 0.4 * sin(u_time * 0.75 + seed * 17.0));
+    float starfield(vec2 p, float density, float threshold) {
+      vec2 cell = floor(p * density);
+      vec2 local = fract(p * density) - 0.5;
+      float h = hash21(cell);
+      float shape = 1.0 - smoothstep(0.008, 0.068, length(local));
+      return step(threshold, h) * shape * (0.3 + h * 0.7);
     }
+
     void main() {
-      // The disk is a plane in 3D, the horizon is a ray-intersected black sphere.
       vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
-      vec2 lens = uv * (1.0 + 0.035 / (dot(uv, uv) + 0.015));
-      vec2 starsUv = lens + u_pointer * 0.009;
-      float stars = starLayer(starsUv + 14.0, 63.0, 0.992)
-                  + 0.44 * starLayer(starsUv - 20.0, 99.0, 0.995);
-
-      vec3 color = vec3(0.015, 0.012, 0.024);
-      color += vec3(0.055, 0.026, 0.089) * exp(-dot(uv, uv) * 16.0);
-      color += vec3(0.65, 0.55, 0.90) * stars * 0.46;
-
-      vec3 ro = vec3(u_pointer.x * 0.40, 2.15 - u_pointer.y * 0.35, 5.30);
-      vec3 forward = normalize(-ro);
+      vec3 camera = vec3(u_pointer.x * 0.12, 1.12 + u_pointer.y * 0.20, 7.50);
+      vec3 forward = normalize(-camera);
       vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
       vec3 up = cross(right, forward);
-      vec2 screen = uv * 2.15;
-      vec3 rd = normalize(forward * 2.85 + right * screen.x + up * screen.y);
+      vec3 direction = normalize(forward * 2.7 + right * (uv.x * 3.6) + up * (uv.y * 3.6));
+      vec3 position = camera;
+      float impact = length(cross(position, direction));
 
-      float sphereT = sphereDistance(ro, rd, 0.81);
-      float impact = length(cross(ro, rd));
-      // Photon ring / lensing-like highlight; intentionally stylized, not astrophysical simulation.
-      float halo = gauss(impact - 1.06, 0.17) * 0.22;
-      halo += gauss(impact - 0.89, 0.045) * 0.75;
-      halo += gauss(impact - 0.82, 0.012) * 1.00;
-      vec3 photonColor = mix(vec3(0.55, 0.31, 1.0), vec3(1.0, 0.52, 0.31),
-                             smoothstep(-0.28, 0.26, uv.x));
-      color += photonColor * halo;
+      vec3 diskColor = vec3(0.0);
+      float opacity = 0.0;
+      bool captured = false;
 
-      // 3D ray / accretion-plane intersection; depth-tested against the dark core.
-      float planeT = -ro.y / rd.y;
-      if (planeT > 0.0 && planeT < 22.0 && (sphereT <= 0.0 || planeT < sphereT)) {
-        vec3 hit = ro + rd * planeT;
-        float r = length(hit.xz);
-        if (r >= 0.86 && r <= 3.02) {
-          float theta = atan(hit.z, hit.x);
-          float energy = smoothstep(0.86, 1.02, r) * (1.0 - smoothstep(2.58, 3.02, r));
-          float angularVelocity = 2.0 / pow(max(r, 0.9), 1.35);
-          float streaks = sin(theta * 36.0 - u_time * angularVelocity + 16.0 * r);
-          float spiral = sin(theta * 11.0 - u_time * 0.64 + 10.8 * r);
-          float detail = sin(theta * 84.0 - u_time * 1.20 + 28.0 * r);
-          float rings = 0.65 + 0.22 * streaks + 0.15 * spiral + 0.09 * detail;
-          float innerHeat = gauss(r - 1.05, 0.27) * 1.4;
-          float outerGlow = gauss(r - 1.9, 0.77) * 0.55;
-          float doppler = smoothstep(-0.4, 0.8, hit.x);
-          vec3 purple = vec3(0.47, 0.27, 1.05);
-          vec3 coral = vec3(1.18, 0.33, 0.18);
-          vec3 plasma = mix(purple, coral, doppler * 0.85 + 0.08);
-          plasma += vec3(0.53, 0.38, 0.30) * innerHeat;
-          float brightness = max(0.04, rings) * energy * (0.52 + innerHeat + outerGlow);
-          color += plasma * brightness * 1.26;
-          // Hot narrow orbit near the innermost edge.
-          color += vec3(1.0, 0.73, 0.59) * gauss(r - 1.025, 0.062) * energy * 0.46;
+      // Curved ray propagation towards a dark event-horizon surrogate.
+      // Integrates a projected inverse-square attraction along the ray.
+      // Produces lensed primary and secondary images of the accretion plane.
+      if (impact < 4.70) {
+        for (int i = 0; i < 112; i++) {
+          float radius = length(position);
+          if (radius < 0.72) { captured = true; break; }
+
+          float ds = clamp(radius * 0.057 * u_speed, 0.032, 0.29);
+          float gravity = 1.05 / max(radius * radius * radius, 0.001);
+          vec3 perpendicular = position - direction * dot(position, direction);
+          vec3 newDir = normalize(direction - ds * gravity * perpendicular);
+          vec3 newPos = position + newDir * ds;
+
+          // A plane crossing can occur in front OR behind the shadow.
+          if (position.y * newPos.y < 0.0) {
+            float fraction = position.y / (position.y - newPos.y);
+            vec3 hit = mix(position, newPos, fraction);
+            float r = length(hit.xz);
+            if (r > 0.84 && r < 4.0) {
+              float a = atan(hit.z, hit.x);
+              float spin = u_time * 0.62 / pow(max(r, 1.0), 1.42);
+              float threads = sin(a * 27.0 - spin * 1.6 + r * 13.0);
+              float filaments = sin(a * 63.0 - spin * 3.0 + r * 42.0);
+              float wisps = sin(a * 121.0 - spin * 2.3 + r * 88.0);
+              float streaks = 0.78 + 0.19 * threads + 0.125 * filaments + 0.065 * wisps;
+
+              float edge = smoothstep(0.84, 1.02, r) * (1.0 - smoothstep(3.05, 4.0, r));
+              float innerHeat = bell(r - 1.15, 0.50);
+              float kinematic = 0.94 + 0.11 * hit.x / max(r, 0.85);
+              float energy = edge * (0.30 + 1.65 * innerHeat) * max(0.04, streaks) * kinematic;
+              // Film-inspired amber-white palette, neutral on both sides.
+              vec3 plasma = vec3(1.02 + 0.43 * innerHeat,
+                                 0.54 + 0.36 * innerHeat,
+                                 0.31 + 0.45 * innerHeat);
+              float coverage = clamp(energy * 0.52, 0.0, 0.98);
+              diskColor += (1.0 - opacity) * plasma * energy * coverage;
+              opacity += (1.0 - opacity) * coverage;
+            }
+          }
+          position = newPos;
+          direction = newDir;
+          if (length(position) > 11.0 && dot(position, direction) > 0.0) break;
+          if (opacity > 0.98) break;
         }
       }
 
-      // The shadow has no surface reflection: an approximate event horizon.
-      if (sphereT > 0.0) {
-        color = vec3(0.0015, 0.0012, 0.004);
-        float rim = gauss(impact - 0.805, 0.017);
-        color += photonColor * rim * 0.30;
+      // The photon-ring-like highlights and weak forward scattering.
+      float photon = bell(impact - 1.10, 0.038) * 0.34;
+      float diffusion = bell(impact - 1.40, 0.30) * 0.14;
+      vec3 rim = vec3(photon * 0.94 + diffusion * 0.8,
+                      photon * 0.63 + diffusion * 0.4,
+                      photon * 0.48 + diffusion * 0.6);
+      diskColor += rim * (1.0 - opacity);
+
+      if (captured && opacity < 0.20) {
+        diskColor = vec3(0.0008, 0.0007, 0.0019);
       }
 
-      // Additional atmospheric halo creates a cinematic rather than simulation-grade look.
-      float radial = length(uv);
-      color += vec3(0.16, 0.08, 0.27) * gauss(radial - 0.28, 0.21) * 0.18;
-      color *= 1.0 - 0.25 * smoothstep(0.38, 0.75, radial);
-      color = color / (1.0 + color);
+      // Sparse background stars are gravitationally displaced with the rays.
+      vec2 sky = direction.xy / (1.0 + abs(direction.z));
+      vec2 starUV = sky * 1.65 + vec2(7.19, 3.81);
+      float stars = starfield(starUV, 67.0, 0.9975)
+                  + 0.55 * starfield(starUV + 8.2, 120.0, 0.9985);
+      if (captured) stars = 0.0;
+      float isDisk = smoothstep(0.0, 0.5, opacity);
+      vec3 space = vec3(0.0015, 0.0013, 0.0032);
+      space += vec3(0.34, 0.31, 0.49) * stars * (1.0 - isDisk);
+      float gas = bell(length(uv * vec2(1.05, 1.40)) - 0.29, 0.30);
+      space += vec3(0.010, 0.005, 0.019) * gas * (1.0 - isDisk);
+
+      vec3 color = diskColor + space * (1.0 - opacity);
+      color = 1.0 - exp(-max(vec3(0.0), color) * 2.60);
       color = pow(color, vec3(0.92));
-      fragColor = vec4(color, 1.0);
+      // Soft vignette reduces eye strain around the navigation controls.
+      float vignette = 1.0 - 0.25 * smoothstep(0.34, 0.75, length(uv));
+      fragColor = vec4(color * vignette, 1.0);
     }
   `;
 
-  function makeShader(gl, type, source) {
+  function compile(gl, type, source) {
     const shader = gl.createShader(type);
+    if (!shader) throw new Error('Shader creation failed');
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      const message = gl.getShaderInfoLog(shader);
+      const message = gl.getShaderInfoLog(shader) || 'GLSL compilation failed';
       gl.deleteShader(shader);
-      throw new Error(message || 'Unknown shader compilation error');
+      throw new Error(message);
     }
     return shader;
   }
 
-  function initGraphics() {
+  function createGraphics() {
     const gl = canvas.getContext('webgl2', {
-      alpha: false,
-      depth: false,
-      antialias: false,
-      powerPreference: 'low-power',
-      preserveDrawingBuffer: false
+      alpha: false, depth: false, antialias: false,
+      powerPreference: 'low-power', preserveDrawingBuffer: false
     });
     if (!gl) return null;
-    const vs = makeShader(gl, gl.VERTEX_SHADER, vertexShader);
-    const fs = makeShader(gl, gl.FRAGMENT_SHADER, fragmentShader);
+    const vs = compile(gl, gl.VERTEX_SHADER, vertexShader);
+    const fs = compile(gl, gl.FRAGMENT_SHADER, fragmentShader);
     const program = gl.createProgram();
     gl.attachShader(program, vs);
     gl.attachShader(program, fs);
@@ -230,47 +221,59 @@
     gl.deleteShader(vs);
     gl.deleteShader(fs);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      const message = gl.getProgramInfoLog(program);
+      const message = gl.getProgramInfoLog(program) || 'Program linking failed';
       gl.deleteProgram(program);
-      throw new Error(message || 'Unknown program linking error');
+      throw new Error(message);
     }
     const vao = gl.createVertexArray();
-    gl.bindVertexArray(vao);
     const buffer = gl.createBuffer();
+    gl.bindVertexArray(vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-    const positionLocation = gl.getAttribLocation(program, 'a_position');
-    gl.enableVertexAttribArray(positionLocation);
-    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+    const location = gl.getAttribLocation(program, 'a_position');
+    gl.enableVertexAttribArray(location);
+    gl.vertexAttribPointer(location, 2, gl.FLOAT, false, 0, 0);
     gl.useProgram(program);
-    gl.disable(gl.DEPTH_TEST);
     return {
-      gl,
-      program,
-      vao,
-      uniforms: {
+      gl, vao, program, buffer,
+      uniform: {
         resolution: gl.getUniformLocation(program, 'u_resolution'),
         time: gl.getUniformLocation(program, 'u_time'),
-        pointer: gl.getUniformLocation(program, 'u_pointer')
+        pointer: gl.getUniformLocation(program, 'u_pointer'),
+        speed: gl.getUniformLocation(program, 'u_speed')
       }
     };
   }
 
-  try {
-    graphics = initGraphics();
-    if (graphics) card.classList.add('cosmic-webgl');
-  } catch (error) {
-    console.warn('Cosmic hero WebGL unavailable; using CSS fallback.', error);
-    graphics = null;
+  const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let overridePause = null;
+  let pointer = [0, 0];
+  let pointerTarget = [0, 0];
+  let graphics = null;
+  let inViewport = true;
+  let animation = 0;
+  let lastFrame = 0;
+  let elapsed = 0;
+  let lastAdvance = 0;
+  let density = 1;
+  let slowFrames = 0;
+
+  function paused() { return overridePause === null ? motionPreference.matches : overridePause; }
+  function visible() { return !document.hidden && inViewport && !!card.closest('.active-page'); }
+  function updateButton() {
+    const pausedNow = paused();
+    motionToggle.textContent = pausedNow ? '▶ Анимация' : 'Ⅱ Пауза';
+    motionToggle.setAttribute('aria-pressed', String(pausedNow));
+    motionToggle.setAttribute('aria-label', pausedNow ? 'Включить анимацию' : 'Остановить анимацию');
   }
 
   function resize() {
-    if (!graphics) return;
+    if (!graphics) return false;
     const rect = canvas.getBoundingClientRect();
-    if (rect.width < 2 || rect.height < 2) return;
-    const isMobile = rect.width < 480 || window.innerWidth < 768;
-    const quality = isMobile ? 0.9 : 1.28;
-    const dpr = Math.min(window.devicePixelRatio || 1, quality);
+    if (rect.width < 2 || rect.height < 2) return false;
+    const mobile = rect.width < 500 || window.innerWidth < 750;
+    const maxDpr = mobile ? 0.77 : 1.08;
+    const dpr = Math.max(0.48, Math.min(window.devicePixelRatio || 1, maxDpr) * density);
     const width = Math.max(2, Math.round(rect.width * dpr));
     const height = Math.max(2, Math.round(rect.height * dpr));
     if (canvas.width !== width || canvas.height !== height) {
@@ -278,86 +281,106 @@
       canvas.height = height;
       graphics.gl.viewport(0, 0, width, height);
     }
+    return true;
   }
 
-  function render(now) {
-    frameId = 0;
-    if (!isVisible() || !graphics) return;
-    const frameBudget = card.clientWidth < 480 ? 1000 / 30 : 1000 / 50;
-    if (shouldAnimate() && lastRenderAt && now - lastRenderAt < frameBudget) {
-      frameId = window.requestAnimationFrame(render);
+  function render(timestamp) {
+    animation = 0;
+    if (!graphics || !visible()) return;
+    const lowPower = card.clientWidth < 500 || window.innerWidth < 750;
+    const frameInterval = lowPower ? 1000 / 24 : 1000 / 34;
+    if (!paused() && lastFrame && timestamp - lastFrame < frameInterval) {
+      animation = requestAnimationFrame(render);
       return;
     }
-    lastRenderAt = now;
-    resize();
-    if (canvas.width < 2 || canvas.height < 2) return;
-    if (!isPaused()) {
-      pointer[0] += (targetPointer[0] - pointer[0]) * 0.055;
-      pointer[1] += (targetPointer[1] - pointer[1]) * 0.055;
-      pauseTime = (now - startTime) * 0.001;
+    if (!resize()) return;
+
+    if (!paused()) {
+      const delta = lastAdvance ? Math.min(0.075, (timestamp - lastAdvance) * .001) : 0;
+      elapsed += delta;
+      pointer[0] += (pointerTarget[0] - pointer[0]) * 0.065;
+      pointer[1] += (pointerTarget[1] - pointer[1]) * 0.065;
+      if (lastFrame && timestamp - lastFrame > frameInterval * 1.6) slowFrames++;
+      else slowFrames = Math.max(0, slowFrames - 2);
+      // Adapt to slower GPUs without loading any external library.
+      if (slowFrames > 12 && density > 0.68) {
+        density = Math.max(0.68, density - .12);
+        slowFrames = 0;
+      }
     }
-    const { gl, program, vao, uniforms } = graphics;
+    lastAdvance = timestamp;
+    lastFrame = timestamp;
+
+    const { gl, vao, program, uniform } = graphics;
     gl.useProgram(program);
     gl.bindVertexArray(vao);
-    gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
-    gl.uniform1f(uniforms.time, pauseTime);
-    gl.uniform2f(uniforms.pointer, pointer[0], pointer[1]);
+    gl.uniform2f(uniform.resolution, canvas.width, canvas.height);
+    gl.uniform1f(uniform.time, elapsed);
+    gl.uniform2f(uniform.pointer, pointer[0], pointer[1]);
+    gl.uniform1f(uniform.speed, lowPower ? 1.18 : 1.0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
-    if (shouldAnimate()) frameId = window.requestAnimationFrame(render);
+    if (!paused()) animation = requestAnimationFrame(render);
   }
 
-  function updateRunning() {
-    if (frameId) window.cancelAnimationFrame(frameId);
-    frameId = 0;
-    const visible = isVisible();
-    card.classList.toggle('cosmic-paused', isPaused());
-    card.classList.toggle('cosmic-idle', !visible);
-    updatePauseButton();
-    if (visible && graphics) frameId = window.requestAnimationFrame(render);
+  function update() {
+    if (animation) cancelAnimationFrame(animation);
+    animation = 0;
+    lastAdvance = 0;
+    const shown = visible();
+    card.classList.toggle('cosmic-paused', paused());
+    card.classList.toggle('cosmic-idle', !shown);
+    updateButton();
+    if (shown && graphics) animation = requestAnimationFrame(render);
   }
 
-  pauseButton.addEventListener('click', () => {
-    // A deliberate click may opt in to animation even when reduced motion is set.
-    userPaused = !isPaused();
-    startTime = performance.now() - pauseTime * 1000;
-    updateRunning();
+  try {
+    graphics = createGraphics();
+    if (graphics) card.classList.add('cosmic-webgl');
+  } catch (error) {
+    console.warn('Cosmic hero: WebGL2 unavailable, using image fallback.', error);
+    graphics = null;
+  }
+
+  motionToggle.addEventListener('click', () => {
+    overridePause = !paused();
+    update();
   });
-
-  card.addEventListener('pointermove', event => {
-    if (isPaused()) return;
-    const bounds = card.getBoundingClientRect();
-    targetPointer = [
-      Math.max(-1, Math.min(1, ((event.clientX - bounds.left) / bounds.width - 0.5) * 2)),
-      Math.max(-1, Math.min(1, ((event.clientY - bounds.top) / bounds.height - 0.5) * 2))
+  card.addEventListener('pointermove', (event) => {
+    if (paused()) return;
+    const rect = card.getBoundingClientRect();
+    pointerTarget = [
+      Math.max(-1, Math.min(1, 2 * ((event.clientX - rect.left) / rect.width - 0.5))),
+      Math.max(-1, Math.min(1, 2 * ((event.clientY - rect.top) / rect.height - 0.5)))
     ];
   }, { passive: true });
-  card.addEventListener('pointerleave', () => { targetPointer = [0, 0]; });
-  document.addEventListener('visibilitychange', updateRunning);
-  window.addEventListener('hashchange', () => window.requestAnimationFrame(updateRunning));
-  window.addEventListener('resize', updateRunning, { passive: true });
-  if (reduceMotionQuery.addEventListener) {
-    reduceMotionQuery.addEventListener('change', updateRunning);
-  }
-  if (window.ResizeObserver) new ResizeObserver(updateRunning).observe(card);
+  card.addEventListener('pointerleave', () => { pointerTarget = [0, 0]; });
+  window.addEventListener('hashchange', () => requestAnimationFrame(update));
+  window.addEventListener('resize', update, { passive: true });
+  document.addEventListener('visibilitychange', update);
+  if (motionPreference.addEventListener) motionPreference.addEventListener('change', update);
   if (window.IntersectionObserver) {
     new IntersectionObserver(entries => {
       inViewport = !!entries[0]?.isIntersecting;
-      updateRunning();
-    }, { threshold: 0.01 }).observe(card);
+      update();
+    }, { threshold: 0.02 }).observe(card);
   }
+  if (window.ResizeObserver) new ResizeObserver(update).observe(card);
+
   canvas.addEventListener('webglcontextlost', event => {
     event.preventDefault();
-    if (frameId) window.cancelAnimationFrame(frameId);
-    frameId = 0;
+    if (animation) cancelAnimationFrame(animation);
+    animation = 0;
     graphics = null;
     card.classList.remove('cosmic-webgl');
   });
   canvas.addEventListener('webglcontextrestored', () => {
     try {
-      graphics = initGraphics();
+      graphics = createGraphics();
       if (graphics) card.classList.add('cosmic-webgl');
-      updateRunning();
-    } catch (error) { console.warn('Failed to restore cosmic hero WebGL.', error); }
+    } catch (error) {
+      console.warn('Cosmic hero: WebGL2 restore failed.', error);
+    }
+    update();
   });
-  updateRunning();
+  update();
 })();
