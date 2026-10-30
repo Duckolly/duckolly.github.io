@@ -1,147 +1,29 @@
-/* Gargantua-inspired hero v2: changes the right-hand panel only. */
-.hero-art.cosmic-active {
-  isolation: isolate;
-  background: radial-gradient(ellipse at center, #171118 0%, #090910 68%, #08080d 100%);
+
+/* GARGANTUA V4 - SIZE AND POSITION */
+
+/* Desktop: increase black hole by 12% */
+.hero-art.cosmic-active .cosmic-canvas,
+.hero-art.cosmic-active .cosmic-fallback img,
+.hero-art.cosmic-active .cosmic-sparks,
+.hero-art.cosmic-active .cosmic-orbits {
+    transform: translate(4%, -2%) scale(1.12);
+    transform-origin: center center;
 }
-.hero-art.cosmic-active .art-orbit,
-.hero-art.cosmic-active .art-center,
-.hero-art.cosmic-active .diagram-point { display: none !important; }
-.hero-art.cosmic-active::before { z-index: 3; opacity: .24; pointer-events: none; }
-.hero-art.cosmic-active::after { z-index: 0; pointer-events: none; }
-.hero-art.cosmic-active .art-topline,
-.hero-art.cosmic-active .art-footer { z-index: 9; pointer-events: none; }
-.hero-art .cosmic-fallback,
-.hero-art .cosmic-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
+
+/* Add space around the lower-left button */
+@media (min-width: 621px) {
+    .hero-art.cosmic-active .cosmic-cases {
+        left: 12%;
+        top: 74%;
+    }
 }
-.hero-art .cosmic-canvas { display: none; z-index: 1; }
-.hero-art .cosmic-fallback { z-index: 1; overflow: hidden; }
-.hero-art .cosmic-fallback img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-}
-.hero-art.cosmic-webgl .cosmic-canvas { display: block; }
-.hero-art.cosmic-webgl .cosmic-fallback { display: none; }
-.hero-art .cosmic-orbits {
-  position: absolute;
-  inset: 11% 8% 13%;
-  z-index: 4;
-  pointer-events: none;
-}
-.hero-art .cosmic-orbits i {
-  position: absolute;
-  inset: 13% 10%;
-  border: 1px solid rgba(211, 171, 247, .10);
-  border-radius: 50%;
-  transform: rotate(-24deg) scaleY(.64);
-  box-shadow: 0 0 18px rgba(139, 91, 215, .03);
-}
-.hero-art .cosmic-orbits i + i {
-  inset: 17% 6%;
-  border-color: rgba(255, 203, 165, .08);
-  transform: rotate(36deg) scaleY(.54);
-}
-.hero-art .cosmic-nav {
-  position: absolute;
-  inset: 0;
-  z-index: 6;
-  pointer-events: none;
-}
-.hero-art .cosmic-link {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  width: clamp(70px, 7.9vw, 91px);
-  height: clamp(70px, 7.9vw, 91px);
-  padding: 5px;
-  border: 1px solid rgba(237, 207, 208, .36);
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 15%, rgba(67, 45, 69, .93), rgba(20, 16, 26, .94) 78%);
-  box-shadow: inset 0 1px 0 rgba(255, 240, 220, .12), 0 12px 32px rgba(0,0,0,.43), 0 0 22px rgba(213,145,105,.075);
-  color: #fffaf5;
-  text-align: center;
-  text-decoration: none;
-  text-shadow: 0 1px 12px rgba(0,0,0,.55);
-  pointer-events: auto;
-  cursor: pointer;
-  transform: translate(-50%, -50%);
-  transition: scale .22s ease, background .22s ease, border-color .22s ease, box-shadow .22s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.hero-art .cosmic-link-number {
-  color: #ffc4a9;
-  font: 700 10px/1 var(--mono, Consolas, monospace);
-  letter-spacing: .08em;
-}
-.hero-art .cosmic-link-label {
-  max-width: 90px;
-  font: 700 clamp(10px, 0.91vw, 12px)/1.25 var(--font, Arial, sans-serif);
-}
-.hero-art .cosmic-link:hover,
-.hero-art .cosmic-link:focus-visible {
-  scale: 1.065;
-  border-color: rgba(255, 222, 180, .93);
-  background: radial-gradient(circle at 32% 15%, rgba(111, 67, 89, .97), rgba(36, 24, 42, .97) 75%);
-  box-shadow: inset 0 1px rgba(255,255,255,.25), 0 0 0 5px rgba(254,179,115,.09), 0 0 36px rgba(254,158,92,.28);
-}
-.hero-art .cosmic-link:focus-visible { outline: 2px solid #ffd3a8; outline-offset: 5px; }
-.hero-art .cosmic-home { left: 16%; top: 30%; }
-.hero-art .cosmic-projects { left: 84%; top: 30%; }
-.hero-art .cosmic-cases { left: 16%; top: 70%; }
-.hero-art .cosmic-skills { left: 84%; top: 70%; }
-.hero-art .cosmic-contact { left: 50%; top: 81%; }
-.hero-art .cosmic-motion-toggle {
-  position: absolute;
-  z-index: 10;
-  top: 54px;
-  right: 22px;
-  padding: 7px 11px;
-  color: #d5c6c7;
-  border: 1px solid rgba(244, 216, 202, .26);
-  border-radius: 40px;
-  background: rgba(10, 10, 16, .7);
-  font: 650 10px/1.1 var(--mono, Consolas, monospace);
-  cursor: pointer;
-}
-.hero-art.cosmic-active:not(.cosmic-webgl) .cosmic-motion-toggle { display: none; }
-.hero-art .cosmic-motion-toggle:hover,
-.hero-art .cosmic-motion-toggle:focus-visible {
-  color: white;
-  border-color: rgba(255, 210, 162, .75);
-  outline-offset: 3px;
-}
-@media(max-width: 1150px) {
-  .hero-art .cosmic-link { width: 79px; height: 79px; }
-}
-@media(max-width: 620px) {
-  .hero-art.cosmic-active { min-height: 480px; }
-  .hero-art .cosmic-link { width: 69px; height: 69px; }
-  .hero-art .cosmic-link-number { font-size: 9px; }
-  .hero-art .cosmic-link-label { font-size: 10px; }
-  .hero-art .cosmic-home, .hero-art .cosmic-cases { left: 17%; }
-  .hero-art .cosmic-projects, .hero-art .cosmic-skills { left: 83%; }
-  .hero-art .cosmic-home, .hero-art .cosmic-projects { top: 29%; }
-  .hero-art .cosmic-cases, .hero-art .cosmic-skills { top: 69%; }
-  .hero-art .cosmic-contact { top: 82%; }
-  .hero-art .cosmic-motion-toggle { top: 51px; right: 16px; }
-}
-@media(max-width: 380px) {
-  .hero-art.cosmic-active { min-height: 455px; }
-  .hero-art .cosmic-link { width: 64px; height: 64px; gap: 3px; }
-  .hero-art .cosmic-link-label { font-size: 9px; }
-  .hero-art .cosmic-home, .hero-art .cosmic-cases { left: 15%; }
-  .hero-art .cosmic-projects, .hero-art .cosmic-skills { left: 85%; }
-}
-@media(prefers-reduced-motion: reduce) {
-  .hero-art .cosmic-link { transition: none; }
+
+/* Mobile: smaller zoom to avoid overlap */
+@media (max-width: 620px) {
+    .hero-art.cosmic-active .cosmic-canvas,
+    .hero-art.cosmic-active .cosmic-fallback img,
+    .hero-art.cosmic-active .cosmic-sparks,
+    .hero-art.cosmic-active .cosmic-orbits {
+        transform: translate(3%, -1%) scale(1.05);
+    }
 }
