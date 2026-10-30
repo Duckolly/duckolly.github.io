@@ -1,4 +1,9 @@
-
+#page-home .hero-art.cosmic-active {
+  --gargantua-scale: 1.12;
+  --gargantua-x: 4%;
+  --gargantua-y: -2%;
+  --gargantua-card-height: 460px;
+}
 /* GARGANTUA V4 - SIZE AND POSITION */
 
 /* Desktop: increase black hole by 12% */
