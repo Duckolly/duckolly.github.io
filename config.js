@@ -37,3 +37,29 @@ window.PORTFOLIO_CONTACTS = {
     document.addEventListener('DOMContentLoaded', loadScene, { once: true });
   }
 })();
+
+   observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    setTimeout(() => observer.disconnect(), 15000);
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener(
+      'DOMContentLoaded',
+      ready,
+      { once: true }
+    );
+  } else {
+    ready();
+  }
+})();
+
+
+  const year = document.getElementById('year');
+  if (year) year.textContent = String(new Date().getFullYear());
+})();
