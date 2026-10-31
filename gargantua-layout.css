@@ -1,0 +1,48 @@
+/* GARGANTUA LAYOUT PATCH v2
+   Change the three custom properties on #page-home .hero-grid below.
+   The panel always fits to the right viewport edge (minus right-inset).
+   The javascript calculates --gargantua-right-bleed at runtime.
+   This CSS leaves the renderer and navigation buttons unchanged.
+*/
+@media (min-width: 981px) {
+  #page-home .hero-grid {
+    /* TUNING AREA: EDIT THESE THREE VALUES */
+    --gargantua-copy-share: 46%;    /* left text column width */
+    --gargantua-panel-gap: 24px;    /* distance from text to the black-hole card */
+    --gargantua-right-inset: 12px;  /* distance from card to right screen edge (px) */
+
+    grid-template-columns: minmax(0, var(--gargantua-copy-share)) minmax(0, 1fr);
+    column-gap: var(--gargantua-panel-gap);
+  }
+  #page-home .hero-grid > .hero-copy {
+    min-width: 0;
+  }
+  #page-home .hero-grid > .hero-art.gargantua-hero {
+    min-width: 0;
+    max-width: none;       /* overrides the old 650px card limit */
+    width: calc(100% + var(--gargantua-right-bleed, 0px));
+    justify-self: stretch;
+    margin-right: 0;
+  }
+}
+
+/* Mid-size desktop: leave more room for the large title. */
+@media (min-width: 981px) and (max-width: 1260px) {
+  #page-home .hero-grid {
+    --gargantua-copy-share: 50%;
+    --gargantua-panel-gap: 18px;
+  }
+}
+
+/* Tablets and phones: keep the original single-column layout. */
+@media (max-width: 980px) {
+  #page-home .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #page-home .hero-grid > .hero-art.gargantua-hero {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    justify-self: stretch;
+  }
+}

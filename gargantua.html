@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#000000">
+<title>Gargantua</title>
+<meta name="description" content="A Schwarzschild black hole raytraced in real time in the browser. Null-geodesic integration, relativistic beaming and a Novikov-Thorne accretion disk, in a single self-contained HTML file.">
+<meta property="og:title" content="Gargantua">
+<meta property="og:description" content="A Schwarzschild black hole raytraced in real time in the browser.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="./gargantua-fallback.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000'/%3E%3Cellipse cx='16' cy='16' rx='14' ry='3.5' fill='none' stroke='%23c85a10' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23000' stroke='%23ffb347' stroke-width='2.5'/%3E%3C/svg%3E">
+<link rel="preload" as="image" href="./gargantua-fallback.webp" fetchpriority="high">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;background:#000;overflow:hidden}
+
+/* The plate paints on the first tick so nothing is ever black, then the
+   live render crossfades over it. It is also the fallback when WebGL2 is
+   unavailable, which is why it keeps a drift of its own. */
+.poster{
+  position:fixed;inset:-3%;
+  width:106%;height:106%;
+  object-fit:cover;
+  animation:drift 46s cubic-bezier(.42,0,.58,1) infinite;
+}
+.gl{
+  position:fixed;inset:0;
+  width:100%;height:100%;
+  display:block;
+  opacity:0;
+  transition:opacity 1600ms cubic-bezier(.16,.84,.30,1);
+}
+.live .gl{opacity:1}
+.live .poster{opacity:0;transition:opacity 1600ms cubic-bezier(.16,.84,.30,1)}
+
+@keyframes drift{
+  0%   {transform:translate3d(-.6%, .2%,0)}
+  50%  {transform:translate3d(.55%,-.3%,0)}
+  100% {transform:translate3d(-.6%, .2%,0)}
+}
+</style>
+</head>
+<body>
+<img class="poster" id="poster" src="./gargantua-fallback.webp" alt="A supermassive black hole. Its accretion disk is bent by gravity into a halo arcing over and under the black shadow at the centre.">
+<canvas class="gl" id="gl" aria-hidden="true"></canvas>
+
+<script id="vs" type="x-shader/x-vertex">#version 300 es
+void main(){
+  vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}
+</script>
+
+<script id="fs-ray" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+out vec4 outColor;
+
+uniform vec2  uRes;
+uniform float uTime;
+uniform vec3  uCam;
+uniform float uFov;
+uniform int   uSteps;
+
+/* Geometrised units: G = c = 1, Schwarzschild radius RS = 1.
+   The disk lies in the y = 0 plane. ISCO sits at 3 RS, and the
+   photon sphere casts a shadow of apparent radius 3*sqrt(3)/2. */
+#define RS    1.0
+#define ISCO  3.0
+#define DIN   2.45
+#define DOUT  23.0
+#define SPIN  -1.0    /* sets which limb turns toward us, and so which one burns */
+
+/* ── noise ─────────────────────────────────────────────────────
+   Three octaves, not five. This runs inside the integration loop,
+   so every octave costs eight hashes on every plane crossing.
+   ─────────────────────────────────────────────────────────────── */
+float hash1(vec3 p){
+  p = fract(p * 0.3183099 + vec3(0.1, 0.2, 0.3));
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+vec3 hash3(vec3 p){ return vec3(hash1(p), hash1(p + 19.19), hash1(p + 47.71)); }
+
+float vnoise(vec3 x){
+  vec3 i = floor(x), f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(mix(hash1(i), hash1(i + vec3(1,0,0)), f.x),
+        mix(hash1(i + vec3(0,1,0)), hash1(i + vec3(1,1,0)), f.x), f.y),
+    mix(mix(hash1(i + vec3(0,0,1)), hash1(i + vec3(1,0,1)), f.x),
+        mix(hash1(i + vec3(0,1,1)), hash1(i + vec3(1,1,1)), f.x), f.y), f.z);
+}
+float fbm(vec3 p){
+  float v = vnoise(p) * 0.5;
+  v += vnoise(p * 2.03 + 11.3) * 0.25;
+  v += vnoise(p * 4.11 + 23.7) * 0.125;
+  return v;
+}
+/* One more octave, for the two terms that carry the disk's structure.
+   Real detail at a fourth scale beats a separate high-frequency noise
+   term, which only aliases into speckle as the disk turns. */
+float fbm4(vec3 p){
+  float v = fbm(p);
+  v += vnoise(p * 8.31 + 41.9) * 0.0625;
+  return v;
+}
+
+/* ── emission colour ───────────────────────────────────────────
+   Not a Planck curve. A ramp shaped to land on the amber the plate
+   uses, running ember through gold to white at the inner edge.
+   ─────────────────────────────────────────────────────────────── */
+vec3 blackbody(float t){
+  vec3 c = mix(vec3(0.30, 0.030, 0.004), vec3(1.00, 0.285, 0.035), smoothstep(0.00, 0.46, t));
+  c = mix(c, vec3(1.00, 0.575, 0.170), smoothstep(0.42, 0.82, t));
+  c = mix(c, vec3(1.00, 0.860, 0.590), smoothstep(0.78, 1.16, t));
+  c = mix(c, vec3(1.00, 0.965, 0.910), smoothstep(1.10, 1.60, t));
+  return c;
+}
+
+/* ── sky ───────────────────────────────────────────────────────
+   Cold and sparse on purpose. The disk is the only warm thing in
+   frame, so the stars stay blue-white and the dust barely registers.
+   ─────────────────────────────────────────────────────────────── */
+vec3 starCells(vec3 d, float scale, float thresh, float sharp, float gain){
+  vec3 p = d * scale;
+  vec3 id = floor(p), f = fract(p);
+  float h = hash1(id);
+  if (h <= thresh) return vec3(0.0);
+  vec3 sp = 0.18 + 0.64 * hash3(id + 4.7);
+  float dist = length(f - sp);
+  float b = (h - thresh) / (1.0 - thresh);
+  vec3 tint = mix(vec3(0.74, 0.84, 1.0), vec3(1.0, 0.90, 0.78), hash1(id + 13.1));
+  return tint * exp(-dist * dist * sharp) * b * b * gain;
+}
+vec3 sky(vec3 d){
+  /* No galactic dust band. The camera sits almost in the disk plane, so
+     any band whose normal is near +y covers the entire frame instead of
+     crossing it, and the whole sky washes out navy. Stars only. */
+  vec3 col = vec3(0.0022, 0.0028, 0.0056);            /* never a flat void */
+  col += starCells(d,  30.0, 0.858, 2600.0, 2.60);
+  col += starCells(d,  66.0, 0.888, 5200.0, 1.35);
+  col += starCells(d, 138.0, 0.916, 9000.0, 0.68);
+  col += starCells(d, 268.0, 0.940, 15000.0, 0.34);
+  return col;
+}
+
+/* ── null geodesic ─────────────────────────────────────────────
+   d²x/dλ² = -3/2 · h² · x / r⁵ , with h = x × v conserved.
+   Every bend on screen comes out of this one line.
+   ─────────────────────────────────────────────────────────────── */
+vec3 accAt(vec3 p, vec3 v){
+  vec3 h = cross(p, v);
+  float r2 = dot(p, p);
+  return -1.5 * RS * dot(h, h) / (r2 * r2 * sqrt(r2)) * p;
+}
+
+/* Novikov-Thorne flux, written without pow() because it is called
+   on every step of the volumetric pass. */
+float ntFlux(float r){
+  float u = ISCO / max(r, ISCO + 0.001);
+  return max(u * u * u * (1.0 - sqrt(u)), 0.0);
+}
+
+/* ── the disk, sampled where a ray punches through y = 0 ────────
+   A single ray crosses the plane several times, which is exactly
+   why the far side appears arcing over the shadow and the underside
+   appears below it. Accumulated front to back.
+   ─────────────────────────────────────────────────────────────── */
+void diskHit(vec3 a, vec3 b, vec3 rd, inout vec3 col, inout float trans, inout float nCross){
+  if (a.y * b.y > 0.0) return;
+  float t = abs(a.y) / (abs(a.y) + abs(b.y) + 1e-5);
+  vec3 q = mix(a, b, t);
+  float qr = length(q.xz);
+  if (qr <= DIN * 0.88 || qr >= DOUT) return;
+  nCross += 1.0;
+
+  /* The third crossing onward is a ray that has wound most of the way
+     around the hole, so it squeezes a huge sweep of disk azimuth into a
+     few pixels. Any high-frequency texture there aliases into a dashed
+     line across the Einstein ring, so smooth those images out. The first
+     two crossings, the ones carrying the visible detail, keep everything. */
+  float sharp = 1.0 - smoothstep(2.0, 3.5, nCross);
+
+  /* A soft inner edge, not a hard cutoff. The secondary image of the disk
+     folds up right against DIN, so integration error nudges qr across a
+     hard boundary from one pixel to the next and the Einstein ring comes
+     out as a dashed line. Feathering the edge removes it, and a real disk
+     does not have a razor edge anyway. */
+  float rim = smoothstep(DIN * 0.88, DIN * 1.14, qr);
+
+  float flux = ntFlux(qr);
+  float temp = sqrt(sqrt(flux * 10.0));
+
+  /* Sample the pattern in a frame co-rotating at the local Keplerian
+     rate. Rotating the cartesian coords, rather than sampling atan,
+     keeps it seamless; and because omega falls off with radius the
+     filaments shear themselves into spirals for free. */
+  float ang = atan(q.z, q.x);
+  float u = ISCO / qr;
+  float omega = SPIN * 0.80 * u * sqrt(u);                 /* Keplerian, no pow */
+  float ca = cos(omega * uTime), sa = sin(omega * uTime);
+  vec2 rp = vec2(ca * q.x + sa * q.z, -sa * q.x + ca * q.z) / qr;
+
+  /* Three scales of structure: broad clumps, sheared streaks, and a
+     tight concentric grain. Because omega falls off with radius each
+     one winds itself into a spiral at a different rate, which is what
+     gives the disk its filaments instead of a smooth gradient. */
+  float inner = 1.0 - smoothstep(3.4, 14.0, qr);
+
+  /* The slow drift on the radial axis lets the pattern evolve as well as
+     rotate, so the plasma boils instead of turning like a printed disc. */
+  vec3 base = vec3(rp * 2.9, qr * 1.10 + uTime * 0.045);
+  float warp   = fbm(base * 0.62);
+  float clump  = fbm4(base + warp * 1.30);
+  float streak = fbm(vec3(rp * 2.2, qr *  7.0) + warp * 0.55);
+  float fine   = fbm(vec3(rp * 2.6, qr * 17.0) + warp * 0.35);
+
+  float tex = mix(0.60, mix(0.20, 1.86, smoothstep(0.28, 0.76, clump)),  inner);
+  tex     *= mix(0.94, mix(0.32, 1.52, smoothstep(0.30, 0.78, streak)), inner);
+  tex     *= mix(0.96, mix(0.46, 1.44, smoothstep(0.34, 0.74, fine)),   inner * sharp);
+  tex      = mix(0.85, tex, 0.35 + 0.65 * sharp);
+
+  float I = flux * 11.0 * tex * mix(0.46, 1.0, inner);
+  float d = (qr - ISCO - 0.15) * 3.1;
+  I += exp(-d * d) * 2.30;                                     /* inner rim */
+  float fade = (1.0 - smoothstep(DOUT - 15.0, DOUT, qr)) * rim;  /* long tail */
+  I *= fade;
+
+  /* Relativistic beaming and gravitational redshift. delta cubed is
+     what drives one limb white-hot and drops the other into the dark. */
+  float beta  = sqrt(0.5 / qr);
+  float gamma = inversesqrt(max(1.0 - beta * beta, 1e-4));
+  vec3  tdir  = SPIN * vec3(-sin(ang), 0.0, cos(ang));
+  float dop   = clamp(1.0 / (gamma * (1.0 - dot(tdir * beta, rd))), 0.42, 4.4);
+  float g     = sqrt(max(1.0 - RS / qr, 0.0));
+
+  vec3 emit = blackbody(temp * dop * g) * I * dop * dop * dop * g;
+  float alpha = mix(0.40, 0.96, 1.0 - smoothstep(4.0, 12.0, qr)) * fade;
+  col   += trans * alpha * emit;
+  trans *= 1.0 - alpha;
+}
+
+void main(){
+  vec2 uv = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
+
+  vec3 ro = uCam;
+  vec3 ww = normalize(-ro);                       /* always look at the hole */
+  vec3 uu = normalize(cross(ww, vec3(0.0, 1.0, 0.0)));
+  vec3 vv = cross(uu, ww);
+  vec3 rd = normalize(uv.x * uu + uv.y * vv + uFov * ww);
+
+  /* Impact parameter is conserved. A ray that can never reach the disk
+     and is bent by less than a pixel is just sky, so skip the integrator
+     entirely. On a wide frame this retires most of the screen for free. */
+  float bImp = length(cross(ro, rd));
+  if (bImp > DOUT + 1.5){
+    outColor = vec4(sky(rd), 1.0);
+    return;
+  }
+
+  vec3 pos = ro, vel = rd;
+  vec3 col = vec3(0.0), halo = vec3(0.0);
+  float trans = 1.0;
+  float nCross = 0.0;
+
+  for (int i = 0; i < 256; i++){
+    if (i >= uSteps) break;
+    float r = length(pos);
+    if (r < 1.015 * RS){ trans = 0.0; break; }              /* horizon */
+    if (r > 34.0 && dot(pos, vel) > 0.0) break;             /* escaped */
+
+    /* Finer near the hole: the secondary and tertiary images are thin
+       rings, and a coarse step walks straight past them, which turns
+       the Einstein ring into a dashed line. */
+    float dt = max(0.012, r * mix(0.022, 0.120, smoothstep(4.5, 18.0, r)));
+
+    /* A thin volumetric haze hugging the plane, so the disk has body
+       instead of reading as an infinitely thin sheet. */
+    float ay = abs(pos.y);
+    if (ay < 0.70 && r > DIN && r < DOUT){
+      float fh = ntFlux(r);
+      float dens = exp(-ay * 17.0) * 0.055 * (1.0 - smoothstep(9.0, DOUT - 1.0, r));
+      vec3 hc = mix(vec3(1.0, 0.32, 0.07), vec3(1.0, 0.80, 0.52), smoothstep(0.0, 0.30, fh));
+      halo += trans * hc * fh * 5.2 * dens * dt;
+    }
+
+    /* RK2 midpoint. Near the photon sphere the path curves hard and can
+       punch through the disk plane twice inside one step, so refine there
+       and test each substep separately. Testing only the whole step is
+       what leaves the Einstein ring drawn as a dashed line. */
+    int sub = 1;
+    if (r < 5.2) sub = 2;
+    if (r < 3.4) sub = 4;          /* rays winding the photon sphere */
+    float h = dt / float(sub);
+    for (int k = 0; k < 4; k++){
+      if (k >= sub) break;
+      vec3 s0 = pos;
+      vec3 a0 = accAt(pos, vel);
+      vec3 pm = pos + vel * (h * 0.5);
+      vec3 vm = vel + a0  * (h * 0.5);
+      pos += vm * h;
+      vel += accAt(pm, vm) * h;
+      diskHit(s0, pos, rd, col, trans, nCross);
+    }
+
+    if (trans < 0.02){ trans = 0.0; break; }
+  }
+
+  vec3 result = col + halo;
+  if (trans > 0.0) result += trans * sky(normalize(vel));
+
+  outColor = vec4(result, 1.0);
+}
+</script>
+
+<script id="fs-blur" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+out vec4 outColor;
+uniform sampler2D uSrc;
+uniform vec2  uTexel;
+uniform vec2  uDir;
+uniform float uThresh;      /* > 0 folds the bright pass into the H blur */
+
+vec3 tap(vec2 uv){
+  vec3 c = texture(uSrc, uv).rgb;
+  if (uThresh > 0.0){
+    float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+    c *= smoothstep(uThresh, uThresh + 0.85, l);
+  }
+  return c;
+}
+void main(){
+  vec2 uv = gl_FragCoord.xy * uTexel;
+  vec2 o = uDir * uTexel;
+  /* nine-tap gaussian folded onto five bilinear fetches */
+  vec3 c  = tap(uv) * 0.2270270270;
+  c += tap(uv + o * 1.3846153846) * 0.3162162162;
+  c += tap(uv - o * 1.3846153846) * 0.3162162162;
+  c += tap(uv + o * 3.2307692308) * 0.0702702703;
+  c += tap(uv - o * 3.2307692308) * 0.0702702703;
+  outColor = vec4(c, 1.0);
+}
+</script>
+
+<script id="fs-comp" type="x-shader/x-fragment">#version 300 es
+precision highp float;
+out vec4 outColor;
+uniform sampler2D uScene;
+uniform sampler2D uBloomA;   /* tight, quarter res    */
+uniform sampler2D uBloomB;   /* wide, eighth res      */
+uniform vec2  uRes;
+uniform vec2  uSceneTexel;
+uniform float uTime;
+
+vec3 aces(vec3 x){
+  return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+}
+void main(){
+  vec2 uv = gl_FragCoord.xy / uRes;
+
+  vec3 c = texture(uScene,  uv).rgb;
+
+  /* Unsharp mask against the ray pass itself. The geodesic image is clean
+     and noise-free, so this recovers the filament edges the downsample and
+     the bloom soften, and costs four fetches. */
+  vec2 t = uSceneTexel;
+  vec3 lo = (texture(uScene, uv + vec2( t.x, 0.0)).rgb
+           + texture(uScene, uv + vec2(-t.x, 0.0)).rgb
+           + texture(uScene, uv + vec2(0.0,  t.y)).rgb
+           + texture(uScene, uv + vec2(0.0, -t.y)).rgb) * 0.25;
+  c += (c - lo) * 0.42;
+
+  /* Bloom is a garnish, not the image. Carrying it at the strength this
+     had before is exactly what makes a render read as soft and dated. */
+  c += texture(uBloomA, uv).rgb * 0.26 + texture(uBloomB, uv).rgb * 0.34;
+
+  c = aces(max(c, 0.0) * 1.08);
+
+  /* a light S-curve: hold the blacks down, let the hot limb run */
+  c = c * c * (3.0 - 2.0 * c) * 0.18 + c * 0.82;
+
+  /* Vignette measured in square units, so it stays a circle instead of
+     becoming an ellipse that clips the sides of an ultrawide monitor. */
+  vec2 q = (uv - 0.5) * vec2(max(1.0, uRes.x / uRes.y), max(1.0, uRes.y / uRes.x));
+  c *= 1.0 - dot(q, q) * 0.42;
+
+  /* A fixed ordered dither, not per-frame noise. Random grain regenerated
+     every frame is what reads as crawling static across the black; an R2
+     low-discrepancy pattern that never changes breaks up 8-bit banding
+     just as well and is completely still. */
+  float d = fract(dot(gl_FragCoord.xy, vec2(0.7548776662, 0.5698402909)));
+  c += (d - 0.5) * 0.0040;
+
+  outColor = vec4(pow(max(c, 0.0), vec3(1.0 / 2.2)), 1.0);
+}
+</script>
+
+<script>
+(() => {
+"use strict";
+
+const canvas = document.getElementById("gl");
+const gl = canvas.getContext("webgl2", {
+  alpha: false, antialias: false, depth: false, stencil: false,
+  powerPreference: "high-performance", preserveDrawingBuffer: false
+});
+
+/* Without WebGL2 the poster simply stays, still drifting. */
+if (!gl) { canvas.remove(); return; }
+
+const ext = gl.getExtension("EXT_color_buffer_half_float")
+         || gl.getExtension("EXT_color_buffer_float");
+
+const src = id => document.getElementById(id).textContent.trim();
+function compile(type, source){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function program(fsId){
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, src("vs")));
+  gl.attachShader(p, compile(gl.FRAGMENT_SHADER, src(fsId)));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS))
+    throw new Error(gl.getProgramInfoLog(p));
+  const u = {};
+  for (let i = 0, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); i < n; i++){
+    const info = gl.getActiveUniform(p, i);
+    u[info.name] = gl.getUniformLocation(p, info.name);
+  }
+  return { p, u };
+}
+
+let RAY, BLUR, COMP;
+try {
+  RAY  = program("fs-ray");
+  BLUR = program("fs-blur");
+  COMP = program("fs-comp");
+} catch (e){
+  console.error("shader:", e.message);
+  canvas.remove();
+  return;
+}
+
+const vao = gl.createVertexArray();          /* fullscreen triangle, no buffers */
+const FMT  = ext ? gl.RGBA16F : gl.RGBA8;
+const TYPE = ext ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE;
+
+function makeTarget(){
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  return { tex, fbo, w: 0, h: 0 };
+}
+function sizeTarget(t, w, h){
+  if (t.w === w && t.h === h) return;
+  t.w = w; t.h = h;
+  gl.bindTexture(gl.TEXTURE_2D, t.tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, FMT, w, h, 0, gl.RGBA, TYPE, null);
+}
+const scene = makeTarget();
+const pingA = makeTarget();   /* quarter res, tight bloom */
+const pingB = makeTarget();
+const wideA = makeTarget();   /* sixteenth res, wide anamorphic bloom */
+const wideB = makeTarget();
+
+/* ── budget ──────────────────────────────────────────────────
+   Quality is measured on the visitor's machine, never assumed from
+   it. Everyone starts mid-ladder so the first seconds are smooth on
+   a phone, then the page climbs as high as the device sustains.
+
+   scale multiplies *device* pixels, so 1.00 is already native on a
+   retina panel and 1.60 is real supersampling on top of that.
+
+   Note the middle of the ladder. Rather than blurring the image the
+   moment a machine misses 30fps, it first spends frame rate and holds
+   native resolution. For a background whose camera drifts at 0.02
+   rad/s, 20fps is nearly impossible to notice and a soft upscale is
+   impossible to miss. Resolution is surrendered last, not first.
+
+   Frame rates here are only ever divisors of 60. The frame gate can only
+   release on a vsync boundary, so asking for 24 on a 60Hz panel actually
+   delivers 20 and leaves the ladder stuck in a dead zone, judging itself
+   against a target it can never reach.
+   ─────────────────────────────────────────────────────────── */
+const TIERS = [
+  { scale: 1.60, steps: 300, fps: 30 },
+  { scale: 1.30, steps: 275, fps: 30 },
+  { scale: 1.00, steps: 240, fps: 30 },   /* native device pixels */
+  { scale: 1.00, steps: 240, fps: 20 },   /* hold native, spend frame rate */
+  { scale: 0.82, steps: 205, fps: 20 },
+  { scale: 0.66, steps: 175, fps: 20 },
+  { scale: 0.52, steps: 145, fps: 20 },
+  { scale: 0.40, steps: 110, fps: 20 }
+];
+let tier = 4;
+let TARGET_FPS = TIERS[tier].fps;
+let BUDGET_MS  = 1000 / TARGET_FPS;
+
+const MAX_TEX = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+const MAX_PX  = 14e6;          /* keeps VRAM and fill rate sane at 5K */
+let W = 0, H = 0, bw = 0, bh = 0, ww = 0, wh = 0;
+
+function resize(){
+  /* Full device pixel ratio. Capping it at 1.25, as this did, is what makes
+     a render look soft on a retina panel no matter how good the shader is. */
+  const dpr = Math.min(devicePixelRatio || 1, 3);
+  const vw = Math.max(1, Math.round(innerWidth  * dpr));
+  const vh = Math.max(1, Math.round(innerHeight * dpr));
+  canvas.width = vw; canvas.height = vh;
+
+  TARGET_FPS = TIERS[tier].fps;
+  BUDGET_MS  = 1000 / TARGET_FPS;
+  winStart = 0; winFrames = 0;          /* the old window measured a different budget */
+
+  const s = TIERS[tier].scale;
+  let rw = vw * s, rh = vh * s;
+
+  /* clamp to what the driver and the memory budget will actually take */
+  const k = Math.min(1,
+    Math.sqrt(MAX_PX / (rw * rh)),
+    MAX_TEX / rw,
+    MAX_TEX / rh);
+  W = Math.max(2, Math.round(rw * k));
+  H = Math.max(2, Math.round(rh * k));
+
+  bw = Math.max(2, W >> 2);  bh = Math.max(2, H >> 2);
+  ww = Math.max(2, W >> 3);  wh = Math.max(2, H >> 3);
+
+  sizeTarget(scene, W, H);
+  sizeTarget(pingA, bw, bh);
+  sizeTarget(pingB, bw, bh);
+  sizeTarget(wideA, ww, wh);
+  sizeTarget(wideB, ww, wh);
+}
+
+/* ── camera ──────────────────────────────────────────────────
+   A slow orbit a little above the disk plane. Nothing here is
+   fast enough to catch frame to frame; it is meant to be felt
+   only after you have been looking at it for a while.
+   ─────────────────────────────────────────────────────────── */
+let tx = 0, ty = 0, px = 0, py = 0;
+if (matchMedia("(pointer:fine)").matches){
+  addEventListener("pointermove", e => {
+    tx = e.clientX / innerWidth  - 0.5;
+    ty = e.clientY / innerHeight - 0.5;
+  }, { passive: true });
+}
+
+const cam = new Float32Array(3);
+function camera(t){
+  px += (tx - px) * 0.04;
+  py += (ty - py) * 0.04;
+
+  const azim = t * 0.019 + px * 0.30;
+  const incl = 0.104 + 0.026 * Math.sin(t * 0.0361) - py * 0.048;
+  const dist = 26.5 + 1.7 * Math.sin(t * 0.0233);
+
+  const ci = Math.cos(incl);
+  cam[0] = dist * ci * Math.cos(azim);
+  cam[1] = dist * Math.sin(incl);
+  cam[2] = dist * ci * Math.sin(azim);
+}
+
+/* ── frame ───────────────────────────────────────────────────── */
+function bind(prog, target, w, h){
+  gl.useProgram(prog.p);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, target ? target.fbo : null);
+  gl.viewport(0, 0, w, h);
+}
+
+let raf = 0, t0 = 0, lastDraw = 0, tried = 0, settled = false;
+let winStart = 0, winFrames = 0, good = 0, bad = 0;
+
+function frame(now){
+  raf = requestAnimationFrame(frame);
+
+  // The portfolio hides inactive sections without hiding the browser tab.
+  // Do not spend GPU cycles rendering into a hidden iframe.
+  if (document.hidden || (window.frameElement && !window.frameElement.getClientRects().length)) return;
+
+  if (!t0){ t0 = now; lastDraw = now - BUDGET_MS; }
+  const since = now - lastDraw;
+  if (since < BUDGET_MS - 2) return;                    /* hold the budget */
+  lastDraw = now;
+
+  const t = (now - t0) / 1000;
+  camera(t);
+  gl.bindVertexArray(vao);
+
+  /* 1 · integrate the geodesics */
+  bind(RAY, scene, W, H);
+  gl.uniform2f(RAY.u.uRes, W, H);
+  gl.uniform1f(RAY.u.uTime, t);
+  gl.uniform3fv(RAY.u.uCam, cam);
+
+  /* The shader normalises screen space by height, so on a portrait phone
+     the horizontal field collapses and the disk, which is far wider than
+     it is tall, runs off both sides. Widening the field as the frame
+     narrows keeps the whole system in shot on any aspect ratio, and the
+     hole itself is always dead centre because the camera looks at it. */
+  gl.uniform1f(RAY.u.uFov, 1.62 * Math.min(1, (W / H) * 1.12));
+  gl.uniform1i(RAY.u.uSteps, TIERS[tier].steps);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  /* 2 · bright pass folded into the horizontal blur, quarter res */
+  gl.activeTexture(gl.TEXTURE0);
+  bind(BLUR, pingA, bw, bh);
+  gl.bindTexture(gl.TEXTURE_2D, scene.tex);
+  gl.uniform1i(BLUR.u.uSrc, 0);
+  gl.uniform2f(BLUR.u.uTexel, 1 / W, 1 / H);
+  gl.uniform2f(BLUR.u.uDir, 1.6, 0);
+  gl.uniform1f(BLUR.u.uThresh, 0.55);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  /* 3 · vertical blur → the tight bloom */
+  bind(BLUR, pingB, bw, bh);
+  gl.bindTexture(gl.TEXTURE_2D, pingA.tex);
+  gl.uniform2f(BLUR.u.uTexel, 1 / bw, 1 / bh);
+  gl.uniform2f(BLUR.u.uDir, 0, 1);
+  gl.uniform1f(BLUR.u.uThresh, 0);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  /* 4 · a second, wider pass at eighth res, lightly stretched along x so
+         the disk bleeds along its own axis rather than into a round haze */
+  bind(BLUR, wideA, ww, wh);
+  gl.bindTexture(gl.TEXTURE_2D, pingB.tex);
+  gl.uniform2f(BLUR.u.uTexel, 1 / bw, 1 / bh);
+  gl.uniform2f(BLUR.u.uDir, 2.2, 0);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  bind(BLUR, wideB, ww, wh);
+  gl.bindTexture(gl.TEXTURE_2D, wideA.tex);
+  gl.uniform2f(BLUR.u.uTexel, 1 / ww, 1 / wh);
+  gl.uniform2f(BLUR.u.uDir, 0, 1.1);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  /* 5 · tonemap and composite to the screen */
+  bind(COMP, null, canvas.width, canvas.height);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, scene.tex);
+  gl.uniform1i(COMP.u.uScene, 0);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, pingB.tex);
+  gl.uniform1i(COMP.u.uBloomA, 1);
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, wideB.tex);
+  gl.uniform1i(COMP.u.uBloomB, 2);
+  gl.uniform2f(COMP.u.uRes, canvas.width, canvas.height);
+  gl.uniform2f(COMP.u.uSceneTexel, 1 / W, 1 / H);
+  gl.uniform1f(COMP.u.uTime, t);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  /* Measure throughput over a whole second, not the gap between two frames.
+     The gap is quantised to the vsync interval, so it happily reads a
+     healthy 33.3ms while the GPU is actually only completing 16 frames a
+     second. Counting frames against the wall clock cannot be fooled that
+     way, and it is the number that actually matters. */
+  winFrames++;
+  if (!winStart) winStart = now;
+  else if (now - winStart >= 1000){
+    const fps = winFrames * 1000 / (now - winStart);
+    winStart = now; winFrames = 0;
+    __gq.fps = +fps.toFixed(1);
+
+    if (t > 2.0){
+      if (fps < TARGET_FPS * 0.60){
+        /* badly over budget, give quality back immediately */
+        good = bad = 0;
+        if (tier < TIERS.length - 1){ tier++; resize(); }
+        if (tried > 0) settled = true;
+      } else if (fps < TARGET_FPS * 0.80){
+        good = 0;
+        if (++bad >= 2){
+          bad = 0;
+          if (tier < TIERS.length - 1){ tier++; resize(); }
+          if (tried > 0) settled = true;   /* it climbed too far; stop trying */
+        }
+      } else if (fps > TARGET_FPS * 0.90){
+        /* Dropping stays available forever, so a machine that throttles or
+           picks up load from another tab can still give resolution back.
+           Only climbing is locked out once it has found its ceiling. */
+        bad = 0;
+        if (!settled && ++good >= 3){
+          good = 0;
+          if (tier > 0){ tier--; tried++; resize(); }
+          else settled = true;
+        }
+      } else {
+        good = bad = 0;
+      }
+    }
+  }
+
+  if (t > 0.4) document.body.classList.add("live");
+
+  __gq.n++; __gq.tier = tier; __gq.w = W; __gq.h = H; __gq.since = since;
+}
+
+/* a small handle for profiling and for tuning tiers from the console */
+const __gq = window.__gq = {
+  n: 0, tier, w: 0, h: 0, since: 0, fps: 0, TIERS,
+  set(i){ tier = i; settled = true; resize(); }
+};
+
+function start(){ if (!raf){ t0 = 0; raf = requestAnimationFrame(frame); } }
+function stop(){ cancelAnimationFrame(raf); raf = 0; }
+
+document.addEventListener("visibilitychange", () => document.hidden ? stop() : start());
+canvas.addEventListener("webglcontextlost", e => { e.preventDefault(); stop(); });
+canvas.addEventListener("webglcontextrestored", () => { resize(); start(); });
+
+let rz = 0;
+addEventListener("resize", () => {
+  cancelAnimationFrame(rz);
+  rz = requestAnimationFrame(resize);
+}, { passive: true });
+
+resize();
+start();
+
+})();
+</script>
+</body>
+</html>

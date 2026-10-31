@@ -1,0 +1,100 @@
+/* GARGANTUA BUTTONS PATCH v1: circular overlay navigation. */
+/* This stylesheet intentionally does not modify Gargantua's WebGL renderer. */
+#page-home .hero-art.gargantua-hero {
+  --gargantua-nav-size: 86px;
+}
+#page-home .hero-art.gargantua-hero > .gargantua-nav {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+#page-home .hero-art.gargantua-hero .gargantua-nav__link {
+  position: absolute;
+  width: var(--gargantua-nav-size);
+  height: var(--gargantua-nav-size);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 5px;
+  border: 1px solid rgba(252, 174, 133, .5);
+  border-radius: 50%;
+  background: rgba(14, 14, 25, .82);
+  color: #f7f1ee;
+  font: 650 10px/1.15 var(--mono, Consolas, monospace);
+  text-align: center;
+  text-decoration: none;
+  letter-spacing: -.015em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  backdrop-filter: blur(11px);
+  -webkit-backdrop-filter: blur(11px);
+  box-shadow: 0 0 23px rgba(242, 133, 87, .11), 0 5px 20px rgba(0, 0, 0, .42);
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+  pointer-events: auto;
+  cursor: pointer;
+}
+#page-home .hero-art.gargantua-hero .gargantua-nav__number {
+  color: #fdbd9c;
+  font-size: 11px;
+  line-height: 1;
+}
+#page-home .hero-art.gargantua-hero .gargantua-nav__label {
+  display: block;
+}
+#page-home .hero-art.gargantua-hero .gargantua-nav__link:hover,
+#page-home .hero-art.gargantua-hero .gargantua-nav__link:focus-visible {
+  border-color: #ffccaa;
+  background: rgba(56, 30, 37, .95);
+  box-shadow: 0 0 26px rgba(251, 149, 94, .35);
+  color: #fff;
+}
+#page-home .hero-art.gargantua-hero .gargantua-nav__link:focus-visible {
+  outline: 2px solid #ffcba0;
+  outline-offset: 3px;
+}
+/* Four satellites, and one contact button below the event horizon. */
+#page-home .hero-art.gargantua-hero .gargantua-nav__link--home {
+  top: 18%; left: 5%;
+}
+#page-home .hero-art.gargantua-hero .gargantua-nav__link--ai-projects {
+  top: 18%; right: 5%;
+}
+#page-home .hero-art.gargantua-hero .gargantua-nav__link--experience {
+  bottom: 19%; left: 5%;
+}
+#page-home .hero-art.gargantua-hero .gargantua-nav__link--skills {
+  bottom: 19%; right: 5%;
+}
+#page-home .hero-art.gargantua-hero .gargantua-nav__link--contacts {
+  bottom: 4%; left: 50%; transform: translateX(-50%);
+}
+@media (max-width: 620px) {
+  #page-home .hero-art.gargantua-hero {
+    --gargantua-nav-size: clamp(65px, 19vw, 78px);
+  }
+  #page-home .hero-art.gargantua-hero .gargantua-nav__link {
+    font-size: 9px;
+    gap: 3px;
+    padding: 6px 3px;
+  }
+  #page-home .hero-art.gargantua-hero .gargantua-nav__number {
+    font-size: 10px;
+  }
+  #page-home .hero-art.gargantua-hero .gargantua-nav__link--home,
+  #page-home .hero-art.gargantua-hero .gargantua-nav__link--experience {
+    left: 4%;
+  }
+  #page-home .hero-art.gargantua-hero .gargantua-nav__link--ai-projects,
+  #page-home .hero-art.gargantua-hero .gargantua-nav__link--skills {
+    right: 4%;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  #page-home .hero-art.gargantua-hero .gargantua-nav__link {
+    background: #161520;
+  }
+}

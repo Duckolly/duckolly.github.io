@@ -13,10 +13,12 @@
   <title>Сергей Швецов — Systems × Software × AI</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <link rel="stylesheet" href="./styles.css">
-  <link rel="stylesheet" href="./cosmic-hero.css?v=5">
   <script src="./config.js" defer></script>
   <script src="./script.js" defer></script>
-  <script src="./cosmic-hero.js?v=5" defer></script>
+  <link rel="stylesheet" href="./gargantua-embed.css?v=1">
+  <link rel="stylesheet" href="./gargantua-nav.css?v=1">
+  <link rel="stylesheet" href="./gargantua-layout.css?v=2">
+  <script src="./gargantua-layout.js?v=2" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Перейти к содержимому</a>
@@ -60,16 +62,24 @@
             <span>LLM / RAG / Agents</span><span>Backend & API</span><span>Business Analysis</span><span>Production Delivery</span>
           </div>
         </div>
-        <div class="hero-art" aria-label="Схема инженерного цикла: от бизнес-требований к готовому продукту">
-          <div class="art-topline"><span>ENGINEERING / WORKFLOW</span><span class="live-label"><i></i> ACTIVE</span></div>
-          <div class="art-orbit orbit-a" aria-hidden="true"></div>
-          <div class="art-orbit orbit-b" aria-hidden="true"></div>
-          <div class="art-center" aria-hidden="true"><span>AI</span><small>+</small><span>BA</span></div>
-          <div class="diagram-point point-a"><b>01</b><span>DISCOVERY</span><small>FACT → REQ</small></div>
-          <div class="diagram-point point-b"><b>02</b><span>DESIGN</span><small>BPMN / UC</small></div>
-          <div class="diagram-point point-c"><b>03</b><span>BUILD</span><small>API / AGENTS</small></div>
-          <div class="diagram-point point-d"><b>04</b><span>DELIVER</span><small>TEST / PROD</small></div>
-          <div class="art-footer"><span><i aria-hidden="true"></i> SYSTEM INTEGRATION</span><span>END-TO-END / 04</span></div>
+        <div class="hero-art gargantua-hero" aria-label="Гаргантюа — визуализация чёрной дыры">
+          <iframe
+            class="gargantua-frame"
+            src="./gargantua.html"
+            title="Гаргантюа — WebGL2"
+            loading="eager"
+            tabindex="-1"></iframe>
+          <div class="art-topline" aria-hidden="true">
+            <span>GARGANTUA / WEBGL2</span>
+            <span class="live-label"><i></i> ACTIVE</span>
+          </div>
+          <nav class="gargantua-nav" aria-label="Навигация вокруг Гаргантюа">
+            <a class="gargantua-nav__link gargantua-nav__link--home" href="#home" title="Главная" aria-label="Главная"><span class="gargantua-nav__number" aria-hidden="true">01</span><span class="gargantua-nav__label">Главная</span></a>
+            <a class="gargantua-nav__link gargantua-nav__link--ai-projects" href="#ai-projects" title="AI-проекты" aria-label="AI-проекты"><span class="gargantua-nav__number" aria-hidden="true">02</span><span class="gargantua-nav__label">AI-проекты</span></a>
+            <a class="gargantua-nav__link gargantua-nav__link--experience" href="#experience" title="Кейсы" aria-label="Кейсы"><span class="gargantua-nav__number" aria-hidden="true">03</span><span class="gargantua-nav__label">Кейсы</span></a>
+            <a class="gargantua-nav__link gargantua-nav__link--skills" href="#skills" title="Стек" aria-label="Стек"><span class="gargantua-nav__number" aria-hidden="true">04</span><span class="gargantua-nav__label">Стек</span></a>
+            <a class="gargantua-nav__link gargantua-nav__link--contacts" href="#contacts" title="Связаться" aria-label="Связаться"><span class="gargantua-nav__number" aria-hidden="true">05</span><span class="gargantua-nav__label">Связаться</span></a>
+          </nav>
         </div>
       </div>
       <div class="container scroll-cue"><span>ПРОКРУТИТЬ К ПРОЕКТАМ</span><span class="scroll-line" aria-hidden="true"></span><span>↓</span></div>

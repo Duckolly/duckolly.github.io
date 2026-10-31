@@ -1,0 +1,38 @@
+/* Gargantua hero integration. Change the CSS variables below to tune size. */
+#page-home .hero-art.gargantua-hero {
+  --gargantua-card-height: 540px;
+  --gargantua-zoom: 1.2;
+  --gargantua-x: 0%;
+  --gargantua-y: 0%;
+  min-height: var(--gargantua-card-height);
+  background: #000;
+  isolation: isolate;
+  overflow: hidden;
+}
+#page-home .hero-art.gargantua-hero::before,
+#page-home .hero-art.gargantua-hero::after {
+  display: none;
+}
+#page-home .hero-art.gargantua-hero .gargantua-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: 0;
+  background: #000;
+  transform-origin: center;
+  transform: translate(var(--gargantua-x), var(--gargantua-y))
+             scale(var(--gargantua-zoom));
+}
+#page-home .hero-art.gargantua-hero > .art-topline {
+  z-index: 2;
+  pointer-events: none;
+  text-shadow: 0 1px 12px #000;
+}
+@media (max-width: 620px) {
+  #page-home .hero-art.gargantua-hero {
+    --gargantua-card-height: clamp(340px, 96vw, 460px);
+    --gargantua-zoom: 1.03;
+  }
+}
