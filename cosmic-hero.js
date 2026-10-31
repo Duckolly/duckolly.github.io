@@ -75,6 +75,7 @@
   `;
 
   const fragmentShader = `#version 300 es
+    // GARGANTUA_OVERLAY_FIX_V1: transparent highlights on the original image.
     precision highp float;
     uniform vec2 u_resolution;
     uniform float u_time;
@@ -82,117 +83,54 @@
     uniform float u_speed;
     out vec4 fragColor;
 
-    float hash21(vec2 p) {
-      p = fract(p * vec2(127.1, 311.7));
-      p += dot(p, p + 43.19);
-      return fract(p.x * p.y);
-    }
-    float bell(float v, float sigma) {
-      float x = v / sigma;
-      return exp(-x * x);
-    }
-    float starfield(vec2 p, float density, float threshold) {
-      vec2 cell = floor(p * density);
-      vec2 local = fract(p * density) - 0.5;
-      float h = hash21(cell);
-      float shape = 1.0 - smoothstep(0.008, 0.068, length(local));
-      return step(threshold, h) * shape * (0.3 + h * 0.7);
+    float bell(float value, float spread) {
+      float t = value / spread;
+      return exp(-t * t);
     }
 
     void main() {
-      vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / min(u_resolution.x, u_resolution.y);
-      vec3 camera = vec3(u_pointer.x * 0.12, 1.12 + u_pointer.y * 0.20, 7.50);
-      vec3 forward = normalize(-camera);
-      vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
-      vec3 up = cross(right, forward);
-      vec3 direction = normalize(forward * 2.7 + right * (uv.x * 3.6) + up * (uv.y * 3.6));
-      vec3 position = camera;
-      float impact = length(cross(position, direction));
+      // Match object-fit: cover for gargantua-fallback.webp (1672 x 941).
+      // Coordinates are expressed in units of the *original image height*.
+      float aspect = u_resolution.x / u_resolution.y;
+      float cover = max(1.0, aspect / (1672.0 / 941.0));
+      vec2 p = (gl_FragCoord.xy - u_resolution * 0.5) /
+               (u_resolution.y * cover);
+      p.x += u_pointer.x * 0.003;
+      p.y += u_pointer.y * 0.002;
 
-      vec3 diskColor = vec3(0.0);
-      float opacity = 0.0;
-      bool captured = false;
+      // Lens arc lies above the original image's horizon, at y ~ 390 px.
+      vec2 lensPoint = p - vec2(0.0, 0.079);
+      float radius = length(lensPoint);
+      float theta = atan(lensPoint.y, lensPoint.x);
+      float lens = bell(radius - 0.157, 0.016)
+                   * smoothstep(-0.026, 0.095, lensPoint.y);
 
-      // Curved ray propagation towards a dark event-horizon surrogate.
-      // Integrates a projected inverse-square attraction along the ray.
-      // Produces lensed primary and secondary images of the accretion plane.
-      if (impact < 4.70) {
-        for (int i = 0; i < 112; i++) {
-          float radius = length(position);
-          if (radius < 0.72) { captured = true; break; }
+      // The visible accretion sheet follows the original image's horizon.
+      // Suppress light over the black central shadow (abs(x) < 0.14).
+      float absX = abs(p.x);
+      float planeY = -0.021;
+      float planeWidth = 0.015 + 0.025 * min(absX, 0.8);
+      float plane = bell(p.y - planeY, planeWidth)
+                    * smoothstep(0.136, 0.21, absX)
+                    * (1.0 - smoothstep(0.64, 0.86, absX));
 
-          float ds = clamp(radius * 0.057 * u_speed, 0.032, 0.29);
-          float gravity = 1.05 / max(radius * radius * radius, 0.001);
-          vec3 perpendicular = position - direction * dot(position, direction);
-          vec3 newDir = normalize(direction - ds * gravity * perpendicular);
-          vec3 newPos = position + newDir * ds;
+      // Phase is wrapped to [0, 2pi) in JavaScript: no float precision drift.
+      float lensThreads = 0.5 + 0.5 * sin(theta * 20.0 - u_time * 2.0
+                                            + radius * 65.0);
+      float planeThreads = 0.5 + 0.5 * sin(p.x * 44.0 - u_time * 3.0
+                                             + p.y * 20.0);
+      float strength = (0.62 * lens * (0.26 + 0.74 * lensThreads)
+                     + 0.85 * plane * (0.25 + 0.75 * planeThreads))
+                     / max(1.0, u_speed);
 
-          // A plane crossing can occur in front OR behind the shadow.
-          if (position.y * newPos.y < 0.0) {
-            float fraction = position.y / (position.y - newPos.y);
-            vec3 hit = mix(position, newPos, fraction);
-            float r = length(hit.xz);
-            if (r > 0.84 && r < 4.0) {
-              float a = atan(hit.z, hit.x);
-              float spin = u_time * 0.62 / pow(max(r, 1.0), 1.42);
-              float threads = sin(a * 27.0 - spin * 1.6 + r * 13.0);
-              float filaments = sin(a * 63.0 - spin * 3.0 + r * 42.0);
-              float wisps = sin(a * 121.0 - spin * 2.3 + r * 88.0);
-              float streaks = 0.78 + 0.19 * threads + 0.125 * filaments + 0.065 * wisps;
-
-              float edge = smoothstep(0.84, 1.02, r) * (1.0 - smoothstep(3.05, 4.0, r));
-              float innerHeat = bell(r - 1.15, 0.50);
-              float kinematic = 0.94 + 0.11 * hit.x / max(r, 0.85);
-              float energy = edge * (0.30 + 1.65 * innerHeat) * max(0.04, streaks) * kinematic;
-              // Film-inspired amber-white palette, neutral on both sides.
-              vec3 plasma = vec3(1.02 + 0.43 * innerHeat,
-                                 0.54 + 0.36 * innerHeat,
-                                 0.31 + 0.45 * innerHeat);
-              float coverage = clamp(energy * 0.52, 0.0, 0.98);
-              diskColor += (1.0 - opacity) * plasma * energy * coverage;
-              opacity += (1.0 - opacity) * coverage;
-            }
-          }
-          position = newPos;
-          direction = newDir;
-          if (length(position) > 11.0 && dot(position, direction) > 0.0) break;
-          if (opacity > 0.98) break;
-        }
-      }
-
-      // The photon-ring-like highlights and weak forward scattering.
-      float photon = bell(impact - 1.10, 0.038) * 0.34;
-      float diffusion = bell(impact - 1.40, 0.30) * 0.14;
-      vec3 rim = vec3(photon * 0.94 + diffusion * 0.8,
-                      photon * 0.63 + diffusion * 0.4,
-                      photon * 0.48 + diffusion * 0.6);
-      diskColor += rim * (1.0 - opacity);
-
-      if (captured && opacity < 0.20) {
-        diskColor = vec3(0.0008, 0.0007, 0.0019);
-      }
-
-      // Sparse background stars are gravitationally displaced with the rays.
-      vec2 sky = direction.xy / (1.0 + abs(direction.z));
-      vec2 starUV = sky * 1.65 + vec2(7.19, 3.81);
-      float stars = starfield(starUV, 67.0, 0.9975)
-                  + 0.55 * starfield(starUV + 8.2, 120.0, 0.9985);
-      if (captured) stars = 0.0;
-      float isDisk = smoothstep(0.0, 0.5, opacity);
-      vec3 space = vec3(0.0015, 0.0013, 0.0032);
-      space += vec3(0.34, 0.31, 0.49) * stars * (1.0 - isDisk);
-      float gas = bell(length(uv * vec2(1.05, 1.40)) - 0.29, 0.30);
-      space += vec3(0.010, 0.005, 0.019) * gas * (1.0 - isDisk);
-
-      vec3 color = diskColor + space * (1.0 - opacity);
-      color = 1.0 - exp(-max(vec3(0.0), color) * 2.60);
-      color = pow(color, vec3(0.92));
-      // Soft vignette reduces eye strain around the navigation controls.
-      float vignette = 1.0 - 0.25 * smoothstep(0.34, 0.75, length(uv));
-      fragColor = vec4(color * vignette, 1.0);
+      // Transparent pixels reveal the source image, stars and both arcs.
+      // Alpha never exceeds 0.13; no opaque replacement is possible.
+      float alpha = clamp(strength * 0.12, 0.0, 0.13);
+      vec3 glow = mix(vec3(1.0, 0.61, 0.28),
+                      vec3(1.0, 0.88, 0.62), planeThreads * 0.6);
+      fragColor = vec4(glow, alpha);
     }
   `;
-
   function compile(gl, type, source) {
     const shader = gl.createShader(type);
     if (!shader) throw new Error('Shader creation failed');
@@ -208,7 +146,7 @@
 
   function createGraphics() {
     const gl = canvas.getContext('webgl2', {
-      alpha: false, depth: false, antialias: false,
+      alpha: true, premultipliedAlpha: false, depth: false, antialias: false,
       powerPreference: 'low-power', preserveDrawingBuffer: false
     });
     if (!gl) return null;
@@ -315,7 +253,7 @@
     gl.useProgram(program);
     gl.bindVertexArray(vao);
     gl.uniform2f(uniform.resolution, canvas.width, canvas.height);
-    gl.uniform1f(uniform.time, elapsed);
+    gl.uniform1f(uniform.time, (elapsed * 0.35) % (2 * Math.PI));
     gl.uniform2f(uniform.pointer, pointer[0], pointer[1]);
     gl.uniform1f(uniform.speed, lowPower ? 1.18 : 1.0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);

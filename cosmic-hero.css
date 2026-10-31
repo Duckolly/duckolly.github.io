@@ -237,3 +237,42 @@
     transition: none;
   }
 }
+
+/* GARGANTUA_OVERLAY_FIX_V1
+ * Keep the original detailed image permanently visible. WebGL adds light only.
+ * No WebGL, context lost or reduced motion -> the same complete black hole.
+ */
+#page-home .hero-art.cosmic-active.cosmic-webgl .cosmic-fallback {
+  display: block;
+}
+#page-home .hero-art.cosmic-active .cosmic-canvas {
+  /* Alpha output from the WebGL canvas is composited over the image. */
+  filter: none;
+}
+#page-home .hero-art.cosmic-active .cosmic-fallback::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  /* The center stays transparent so the event-horizon silhouette stays black. */
+  background: radial-gradient(ellipse 30% 22% at 52% 50%,
+      transparent 40%, rgba(252, 174, 98, .14) 68%, transparent 90%);
+  mix-blend-mode: screen;
+  opacity: 0.16;
+  animation: gargantua-light-breath 11s ease-in-out infinite alternate;
+}
+@keyframes gargantua-light-breath {
+  from { opacity: .08; }
+  to { opacity: .28; }
+}
+#page-home .hero-art.cosmic-active.cosmic-paused .cosmic-fallback::after,
+#page-home .hero-art.cosmic-active.cosmic-idle .cosmic-fallback::after {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  #page-home .hero-art.cosmic-active .cosmic-fallback::after {
+    animation: none;
+    opacity: .14;
+  }
+}

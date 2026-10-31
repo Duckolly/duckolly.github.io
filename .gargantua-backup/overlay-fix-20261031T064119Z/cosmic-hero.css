@@ -1,0 +1,239 @@
+/*
+ * GARGANTUA HERO / CSS v5
+ * Load AFTER styles.css. The WebGL2 renderer is in cosmic-hero.js.
+ * Change variables below to control the scene; no JS changes required.
+ */
+
+#page-home .hero-art.cosmic-active {
+  /* MAIN SETTINGS: 1.00 = original, 1.12 = +12%, 1.30 = +30%. */
+  --gargantua-scale: 1.12;
+  --gargantua-x: 4%;
+  --gargantua-y: -2%;
+  --gargantua-card-height: 460px;
+
+  min-height: var(--gargantua-card-height);
+  isolation: isolate;
+  background: #070811;
+}
+
+/* Remove only the previous engineering-diagram elements after the
+   black-hole scene has initialized. This leaves the old diagram as
+   a graceful fallback if JavaScript does not load at all. */
+#page-home .hero-art.cosmic-active > .art-orbit,
+#page-home .hero-art.cosmic-active > .art-center,
+#page-home .hero-art.cosmic-active > .diagram-point,
+#page-home .hero-art.cosmic-active > .art-footer {
+  display: none;
+}
+
+/* Tone down the original panel's decorative grid and purple glow. */
+#page-home .hero-art.cosmic-active::before {
+  opacity: .18;
+  z-index: 3;
+  pointer-events: none;
+}
+#page-home .hero-art.cosmic-active::after {
+  opacity: .09;
+  z-index: 2;
+  pointer-events: none;
+}
+#page-home .hero-art.cosmic-active > .art-topline {
+  z-index: 7;
+  pointer-events: none;
+  text-shadow: 0 1px 12px #040409;
+}
+
+/* WebGL and the existing locally generated image fallback render in
+   the same box. Transform the *image/canvas*, not the card or nav. */
+#page-home .hero-art.cosmic-active .cosmic-fallback,
+#page-home .hero-art.cosmic-active .cosmic-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+}
+#page-home .hero-art.cosmic-active .cosmic-fallback {
+  z-index: 0;
+  overflow: hidden;
+  background: radial-gradient(ellipse at center, #20141e, #06070e 75%);
+}
+#page-home .hero-art.cosmic-active .cosmic-fallback img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: 50% 50%;
+  transform: translate(var(--gargantua-x), var(--gargantua-y))
+             scale(var(--gargantua-scale));
+}
+#page-home .hero-art.cosmic-active .cosmic-canvas {
+  z-index: 1;
+  display: none; /* Do not hide fallback before WebGL initializes. */
+  transform-origin: 50% 50%;
+  transform: translate(var(--gargantua-x), var(--gargantua-y))
+             scale(var(--gargantua-scale));
+  filter: brightness(1.06) saturate(1.06);
+}
+#page-home .hero-art.cosmic-active.cosmic-webgl .cosmic-canvas {
+  display: block;
+}
+#page-home .hero-art.cosmic-active.cosmic-webgl .cosmic-fallback {
+  display: none;
+}
+
+/* Restrained orbit accents. They follow the same scene transform and
+   never block pointer interaction with the navigation. */
+#page-home .hero-art.cosmic-active .cosmic-orbits {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+  transform-origin: 50% 50%;
+  transform: translate(var(--gargantua-x), var(--gargantua-y))
+             scale(var(--gargantua-scale));
+}
+#page-home .hero-art.cosmic-active .cosmic-orbits i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 63%;
+  height: 40%;
+  transform: translate(-50%, -50%) rotate(-15deg);
+  border: 1px solid rgba(255, 193, 129, .12);
+  border-radius: 50%;
+  box-shadow: 0 0 21px rgba(242, 140, 72, .08);
+}
+#page-home .hero-art.cosmic-active .cosmic-orbits i + i {
+  width: 80%;
+  height: 56%;
+  transform: translate(-50%, -50%) rotate(17deg);
+  border-color: rgba(219, 202, 255, .07);
+  box-shadow: none;
+}
+
+/* Real <a> elements are created by cosmic-hero.js, so all five
+   navigation targets remain accessible even without WebGL2. */
+#page-home .hero-art.cosmic-active .cosmic-nav {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+#page-home .hero-art.cosmic-active .cosmic-link {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 46%;
+  padding: 8px 11px;
+  border: 1px solid rgba(244, 218, 207, .22);
+  border-radius: 999px;
+  background: rgba(13, 13, 25, .72);
+  color: #f4e9e4;
+  font: 600 11px/1.2 var(--mono, Consolas, monospace);
+  letter-spacing: .01em;
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+  box-shadow: 0 7px 24px rgba(0, 0, 0, .18);
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+  pointer-events: auto;
+  white-space: nowrap;
+}
+#page-home .hero-art.cosmic-active .cosmic-link:hover,
+#page-home .hero-art.cosmic-active .cosmic-link:focus-visible {
+  background: rgba(50, 31, 45, .94);
+  border-color: rgba(253, 168, 125, .75);
+  box-shadow: 0 0 22px rgba(243, 157, 104, .19);
+}
+#page-home .hero-art.cosmic-active .cosmic-link-number {
+  color: #f5b08e;
+  font-size: 10px;
+}
+#page-home .hero-art.cosmic-active .cosmic-link-label {
+  color: #eee9eb;
+}
+#page-home .hero-art.cosmic-active .cosmic-home {
+  top: 17%;
+  left: 5%;
+}
+#page-home .hero-art.cosmic-active .cosmic-projects {
+  top: 17%;
+  right: 5%;
+}
+#page-home .hero-art.cosmic-active .cosmic-cases {
+  top: 69%;
+  left: 5%;
+}
+#page-home .hero-art.cosmic-active .cosmic-skills {
+  top: 69%;
+  right: 5%;
+}
+#page-home .hero-art.cosmic-active .cosmic-contact {
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%);
+}
+
+#page-home .hero-art.cosmic-active .cosmic-motion-toggle {
+  position: absolute;
+  right: 16px;
+  bottom: 15px;
+  z-index: 9;
+  padding: 7px 11px;
+  min-height: 32px;
+  border: 1px solid rgba(245, 221, 208, .26);
+  border-radius: 7px;
+  background: rgba(10, 10, 19, .83);
+  color: #ebdbd4;
+  font: 600 10px var(--mono, Consolas, monospace);
+  cursor: pointer;
+}
+#page-home .hero-art.cosmic-active .cosmic-motion-toggle:hover,
+#page-home .hero-art.cosmic-active .cosmic-motion-toggle:focus-visible {
+  border-color: #f8aa83;
+  color: #fff;
+}
+
+@media (max-width: 620px) {
+  #page-home .hero-art.cosmic-active {
+    --gargantua-scale: 1.05;
+    --gargantua-x: 3%;
+    --gargantua-y: -1%;
+    --gargantua-card-height: clamp(360px, 105vw, 460px);
+  }
+  #page-home .hero-art.cosmic-active .cosmic-link {
+    padding: 7px 8px;
+    gap: 5px;
+    font-size: 9px;
+  }
+  #page-home .hero-art.cosmic-active .cosmic-link-number {
+    font-size: 9px;
+  }
+  #page-home .hero-art.cosmic-active .cosmic-home,
+  #page-home .hero-art.cosmic-active .cosmic-projects {
+    top: 16%;
+  }
+  #page-home .hero-art.cosmic-active .cosmic-cases,
+  #page-home .hero-art.cosmic-active .cosmic-skills {
+    top: 73%;
+  }
+  #page-home .hero-art.cosmic-active .cosmic-contact {
+    bottom: 9%;
+  }
+  #page-home .hero-art.cosmic-active .cosmic-motion-toggle {
+    right: 9px;
+    bottom: 9px;
+    min-height: 27px;
+    padding: 5px 7px;
+    font-size: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #page-home .hero-art.cosmic-active .cosmic-link {
+    transition: none;
+  }
+}
