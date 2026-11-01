@@ -62,6 +62,55 @@ html,body{width:100%;height:100%;margin:0;background:#000;overflow:hidden}
   .poster { animation: none; }
   .live .gl { opacity: 0.12; }
 }
+
+/* GARGANTUA_IMAGE_FIRST_V4: original image is always the complete master image.
+   Native iframe size, contain fitting, zero scaling or destructive fades. */
+html, body { background: #000; }
+img.poster, body.live img.poster {
+  position: fixed !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  transform: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+  animation: none !important;
+  transition: none !important;
+  image-rendering: auto;
+  pointer-events: none;
+}
+/* Real-time raytracing is OFF by default, so it cannot erase disc arcs. */
+canvas.gl, body.live canvas.gl { display: none !important; }
+/* Experimental mode only: an additive, low-opacity overlay, never a replacement. */
+body.gargantua-webgl-optin canvas.gl,
+body.gargantua-webgl-optin.live canvas.gl {
+  display: block !important;
+  opacity: 0.12 !important;
+  mix-blend-mode: screen !important;
+}
+/* Minimal compositor-only luminosity variation, without moving or blurring the image. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(ellipse 43% 10% at 51% 53%, rgba(255, 141, 42, 0.07), transparent 82%);
+  opacity: 0.16;
+  animation: gargantua-glow-v4 10s ease-in-out infinite alternate;
+}
+@keyframes gargantua-glow-v4 {
+  from { opacity: 0.12; }
+  to { opacity: 0.48; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body::after { animation: none; opacity: 0.12; }
+}
+
 </style>
 </head>
 <body>
@@ -424,6 +473,17 @@ void main(){
 "use strict";
 
 const canvas = document.getElementById("gl");
+
+// GARGANTUA_IMAGE_FIRST_V4: quality-first path (normal site visitors).
+const gargantuaWebglOptIn = new URLSearchParams(window.location.search).get("render") === "webgl";
+document.body.dataset.gargantuaMode = gargantuaWebglOptIn ? "webgl-experimental" : "image-first";
+if (!gargantuaWebglOptIn) {
+  // The image remains fully rendered by the browser; zero WebGL work.
+  canvas.remove();
+  return;
+}
+document.body.classList.add("gargantua-webgl-optin");
+
 const gl = canvas.getContext("webgl2", {
   alpha: false, antialias: false, depth: false, stencil: false,
   powerPreference: "high-performance", preserveDrawingBuffer: false
