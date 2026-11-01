@@ -43,3 +43,9 @@
   transform-origin: center center;
   image-rendering: auto;
 }
+
+/* GARGANTUA_MOTION_V5: do not resample the whole iframe using transform. */
+#page-home .hero-art.gargantua-hero .gargantua-frame {
+  transform: none !important;
+  transform-origin: center center;
+}

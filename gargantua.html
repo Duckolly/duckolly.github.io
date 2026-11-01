@@ -111,6 +111,51 @@ body::after {
   body::after { animation: none; opacity: 0.12; }
 }
 
+
+/* GARGANTUA_MOTION_V5: preserve the full-resolution WebP at all times.
+   This intentionally supersedes v4 and the original destructive crossfade. */
+html, body { background: #000; }
+img.poster, body.live img.poster {
+  position: fixed !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+  animation: none !important;
+  transition: none !important;
+  pointer-events: none;
+  image-rendering: auto;
+}
+/* Keep the previous raytracer disabled unless the user opts into it.
+   In standard mode the old iframe script removes this canvas entirely. */
+canvas.gl, body.live canvas.gl { display: none !important; }
+body.gargantua-webgl-optin canvas.gl,
+body.gargantua-webgl-optin.live canvas.gl {
+  display: block !important;
+}
+/* The v4 fake glow is replaced with real, pixel-driven moving filaments. */
+body::after { content: none !important; animation: none !important; }
+canvas.gargantua-motion {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 1;
+  z-index: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  canvas.gargantua-motion { display: none; }
+}
+
 </style>
 </head>
 <body>
@@ -815,5 +860,6 @@ start();
 
 })();
 </script>
+<script src="./gargantua-motion.js?v=5" defer></script>
 </body>
 </html>
