@@ -42,6 +42,26 @@ html,body{width:100%;height:100%;margin:0;background:#000;overflow:hidden}
   50%  {transform:translate3d(.55%,-.3%,0)}
   100% {transform:translate3d(-.6%, .2%,0)}
 }
+
+/* GARGANTUA_STABLE_LAYER_V3
+ * Guarantee both accretion-disc arcs remain visible even if ray marching
+ * runs out of steps or WebGL falls back to a low-performance quality tier.
+ * The permanent poster is the shape; the live WebGL pass adds animated light.
+ */
+.gl {
+  mix-blend-mode: screen; /* black pixels cannot erase the poster */
+}
+.live .gl {
+  opacity: 0.30;         /* subtle live light without geometry replacement */
+}
+.live .poster {
+  opacity: 1;            /* NEVER crossfade the complete disk away */
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .poster { animation: none; }
+  .live .gl { opacity: 0.12; }
+}
 </style>
 </head>
 <body>
@@ -267,7 +287,7 @@ void main(){
   float trans = 1.0;
   float nCross = 0.0;
 
-  for (int i = 0; i < 256; i++){
+  for (int i = 0; i < 320; i++){
     if (i >= uSteps) break;
     float r = length(pos);
     if (r < 1.015 * RS){ trans = 0.0; break; }              /* horizon */
@@ -502,10 +522,10 @@ const TIERS = [
   { scale: 1.30, steps: 275, fps: 30 },
   { scale: 1.00, steps: 240, fps: 30 },   /* native device pixels */
   { scale: 1.00, steps: 240, fps: 20 },   /* hold native, spend frame rate */
-  { scale: 0.82, steps: 205, fps: 20 },
-  { scale: 0.66, steps: 175, fps: 20 },
-  { scale: 0.52, steps: 145, fps: 20 },
-  { scale: 0.40, steps: 110, fps: 20 }
+  { scale: 0.82, steps: 240, fps: 20 },
+  { scale: 0.66, steps: 230, fps: 20 },
+  { scale: 0.52, steps: 220, fps: 20 },
+  { scale: 0.40, steps: 220, fps: 20 }
 ];
 let tier = 4;
 let TARGET_FPS = TIERS[tier].fps;
